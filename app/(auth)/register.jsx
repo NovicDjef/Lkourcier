@@ -1,29 +1,20 @@
 // app/(auth)/login.js
+import { COLORS } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
-
-const COLORS = {
-  primary: '#4CAF50',
-  secondary: '#FF9800',
-  dark: '#212121',
-  gray: '#757575',
-  white: '#FFFFFF',
-  light: '#F5F5F5',
-  error: '#F44336',
-};
 
 
 const RegisterScreen = () => {

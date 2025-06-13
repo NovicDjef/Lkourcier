@@ -1,31 +1,21 @@
 // app/(auth)/login.js
-import { loginLivreur } from '@/redux/authSlice';
 import { Ionicons } from '@expo/vector-icons';
+// import LottieView from 'lottie-react-native';
+import { COLORS } from '@/constants/Colors';
 import { router } from 'expo-router';
-import LottieView from 'lottie-react-native';
 import { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useDispatch } from 'react-redux';
-
-const COLORS = {
-  primary: '#4CAF50',
-  secondary: '#FF9800',
-  dark: '#212121',
-  gray: '#757575',
-  white: '#FFFFFF',
-  light: '#F5F5F5',
-  error: '#F44336',
-};
 
 const LoginScreen = () => {
   const dispatch = useDispatch();
@@ -36,28 +26,39 @@ const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+
   const handleLogin = async () => {
     if (!formData.identifier || !formData.password) {
       Alert.alert('Erreur', 'Veuillez remplir tous les champs');
       return;
     }
 
-    setLoading(true);
-    try {
-      const result = await dispatch(loginLivreur(formData));
-      
-      if (loginLivreur.fulfilled.match(result)) {
-        // Succès - redirection automatique via _layout.js
-        Alert.alert('Succès', 'Connexion réussie !');
-      } else {
-        Alert.alert('Erreur', result.payload || 'Erreur de connexion');
-      }
-    } catch (error) {
-      Alert.alert('Erreur', 'Une erreur est survenue');
-    } finally {
-      setLoading(false);
-    }
+    // 🚀 Aller directement à /tabs sans vérification
+    router.replace('/(tabs)');
   };
+  // const handleLogin = async () => {
+  //   if (!formData.identifier || !formData.password) {
+  //     Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      
+  //     return;
+  //   }
+
+  //   setLoading(true);
+  //   try {
+  //     const result = await dispatch(loginLivreur(formData));
+      
+  //     if (loginLivreur.fulfilled.match(result)) {
+  //       // Succès - redirection automatique via _layout.js
+  //       Alert.alert('Succès', 'Connexion réussie !');
+  //     } else {
+  //       Alert.alert('Erreur', result.payload || 'Erreur de connexion');
+  //     }
+  //   } catch (error) {
+  //     Alert.alert('Erreur', 'Une erreur est survenue');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   return (
     <KeyboardAvoidingView
@@ -67,12 +68,12 @@ const LoginScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Animation de bienvenue */}
         <View style={styles.animationContainer}>
-          <LottieView
+          {/* <LottieView
             source={require('@/assets/animations/delivery-truck.json')}
             autoPlay
             loop
             style={styles.animation}
-          />
+          /> */}
         </View>
 
         {/* Titre */}
@@ -151,8 +152,6 @@ const LoginScreen = () => {
     </KeyboardAvoidingView>
   );
 };
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -239,5 +238,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
 
 export default LoginScreen;
