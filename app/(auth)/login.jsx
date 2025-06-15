@@ -1,10 +1,11 @@
-// app/(auth)/login.js
 import { Ionicons } from '@expo/vector-icons';
 // import LottieView from 'lottie-react-native';
 import { COLORS } from '@/constants/Colors';
+import { loginLivreur } from '@/redux/authSlice';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -17,10 +18,11 @@ import {
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 
+
 const LoginScreen = () => {
   const dispatch = useDispatch();
   const [formData, setFormData] = useState({
-    identifier: '', // Email ou téléphone
+    identifier: '', 
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -33,32 +35,41 @@ const LoginScreen = () => {
       return;
     }
 
-    // 🚀 Aller directement à /tabs sans vérification
-    router.replace('/(tabs)');
+    setLoading(true);
+    try {
+      console.log('Tentative de connexion avec:', formData);
+      const result = await dispatch(loginLivreur(formData));
+      console.log('Résultat de la connexion:', result);
+      
+      if (loginLivreur.fulfilled.match(result)) {
+        Alert.alert('Succès', 
+          'Connexion réussie !',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.replace('/(tabs)/dashboard');
+            }
+          }
+        ]);
+      } else {
+        console.log('Erreur de connexion:', result.payload);
+        Alert.alert('Erreur', result.payload || 'Erreur de connexion');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la connexion:', error);
+      Alert.alert('Erreur', 'Une erreur est survenue');
+    } finally {
+      setLoading(false);
+    }
   };
-  // const handleLogin = async () => {
-  //   if (!formData.identifier || !formData.password) {
-  //     Alert.alert('Erreur', 'Veuillez remplir tous les champs');
-      
-  //     return;
-  //   }
-
-  //   setLoading(true);
-  //   try {
-  //     const result = await dispatch(loginLivreur(formData));
-      
-  //     if (loginLivreur.fulfilled.match(result)) {
-  //       // Succès - redirection automatique via _layout.js
-  //       Alert.alert('Succès', 'Connexion réussie !');
-  //     } else {
-  //       Alert.alert('Erreur', result.payload || 'Erreur de connexion');
+  // useEffect(() => {
+  //   return () => {
+  //     if (error) {
+  //       dispatch(clearError());
   //     }
-  //   } catch (error) {
-  //     Alert.alert('Erreur', 'Une erreur est survenue');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+  //   };
+  // }, []);
 
   return (
     <KeyboardAvoidingView
@@ -131,7 +142,7 @@ const LoginScreen = () => {
             disabled={loading}
           >
             {loading ? (
-              <Text style={styles.buttonText}>Connexion...</Text>
+              <Text style={styles.buttonText}><ActivityIndicator size="small" color={COLORS.white} /></Text>
             ) : (
               <Text style={styles.buttonText}>Se connecter</Text>
             )}

@@ -1,19 +1,20 @@
-// app/(tabs)/livraisons.js
 import { COLORS } from '@/constants/Colors';
 import { fetchActiveLivraisons } from '@/redux/livraisonSlice';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
-export const LivraisonsScreen = () => {
+
+export default function LivraisonsScreen() {
   const dispatch = useDispatch();
   const { activeLivraisons, loading } = useSelector((state) => state.livraison);
   const [refreshing, setRefreshing] = useState(false);
@@ -114,7 +115,7 @@ export const LivraisonsScreen = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Mes Livraisons</Text>
         <Text style={styles.subtitle}>
-          {activeLivraisons.length} livraison{activeLivraisons.length > 1 ? 's' : ''} active{activeLivraisons.length > 1 ? 's' : ''}
+          {/* {activeLivraisons?.length} livraison{activeLivraisons.length > 1 ? 's' : ''} active{activeLivraisons.length > 1 ? 's' : ''} */}
         </Text>
       </View>
 

@@ -7,14 +7,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 // import LottieView from 'lottie-react-native';
+import { COLORS } from '@/constants/Colors';
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Provider, useDispatch, useSelector } from 'react-redux';
-
-const COLORS = {
-  primary: '#4CAF50',
-  white: '#FFFFFF',
-};
 
 // Empêcher le splash screen de se cacher automatiquement
 SplashScreen.preventAutoHideAsync();

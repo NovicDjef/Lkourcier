@@ -1,5 +1,6 @@
 // app/(auth)/login.js
 import { COLORS } from '@/constants/Colors';
+import { registerLivreur } from '@/redux/authSlice';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -16,11 +17,10 @@ import {
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 
-
 const RegisterScreen = () => {
   const dispatch = useDispatch();
   const [formData, setFormData] = useState({
-    nom: '',
+    username: '',
     prenom: '',
     email: '',
     telephone: '',
@@ -28,11 +28,12 @@ const RegisterScreen = () => {
     confirmPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const validateForm = () => {
-    if (!formData.nom || !formData.prenom || !formData.email || 
-        !formData.telephone || !formData.password) {
+    if (!formData.username || !formData.prenom || !formData.email || 
+        !formData.telephone || !formData.password || !formData.confirmPassword) {
       Alert.alert('Erreur', 'Veuillez remplir tous les champs');
       return false;
     }
@@ -47,16 +48,56 @@ const RegisterScreen = () => {
       return false;
     }
 
+    // Validation de l'email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Erreur', 'Veuillez entrer une adresse email valide');
+      return false;
+    }
+
+    // Validation du numéro de téléphone
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(formData.telephone)) {
+      Alert.alert('Erreur', 'Veuillez entrer un numéro de téléphone valide (10 chiffres)');
+      return false;
+    }
+
     return true;
   };
 
+  // const handleRegister = async () => {
+  //   if (!validateForm()) return;
+
+  //   setLoading(true);
+  //   try {
+  //     const result = await dispatch(registerLivreur(formData));
+      
+  //     if (registerLivreur.fulfilled.match(result)) {
+  //       Alert.alert(
+  //         'Succès',
+  //         'Inscription réussie ! Vous pouvez maintenant vous connecter.',
+  //         [{ text: 'OK', onPress: () => router.push('/login') }]
+  //       );
+  //     } else {
+  //       Alert.alert('Erreur', result.payload || 'Erreur lors de l\'inscription');
+  //     }
+  //   } catch (error) {
+  //     Alert.alert('Erreur', 'Une erreur est survenue');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+
   const handleRegister = async () => {
     if (!validateForm()) return;
-
+    
+    // Debug : vérifiez les données avant envoi
+    console.log('FormData avant envoi:', formData);
+    
     setLoading(true);
     try {
       const result = await dispatch(registerLivreur(formData));
-      
       if (registerLivreur.fulfilled.match(result)) {
         Alert.alert(
           'Succès',
@@ -64,9 +105,11 @@ const RegisterScreen = () => {
           [{ text: 'OK', onPress: () => router.push('/login') }]
         );
       } else {
+        console.log('Erreur result:', result.payload); // Debug
         Alert.alert('Erreur', result.payload || 'Erreur lors de l\'inscription');
       }
     } catch (error) {
+      console.log('Erreur catch:', error); // Debug
       Alert.alert('Erreur', 'Une erreur est survenue');
     } finally {
       setLoading(false);
@@ -94,9 +137,9 @@ const RegisterScreen = () => {
             <Ionicons name="person" size={20} color={COLORS.gray} />
             <TextInput
               style={styles.input}
-              placeholder="Nom"
-              value={formData.nom}
-              onChangeText={(text) => setFormData({ ...formData, nom: text })}
+              placeholder="Nom d'utilisateur"
+              value={formData.username}
+              onChangeText={(text) => setFormData({ ...formData, username: text })}
             />
           </View>
 
@@ -165,8 +208,15 @@ const RegisterScreen = () => {
               onChangeText={(text) =>
                 setFormData({ ...formData, confirmPassword: text })
               }
-              secureTextEntry={!showPassword}
+              secureTextEntry={!showConfirmPassword}
             />
+            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+              <Ionicons
+                name={showConfirmPassword ? 'eye-off' : 'eye'}
+                size={20}
+                color={COLORS.gray}
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Bouton d'inscription */}
@@ -176,7 +226,7 @@ const RegisterScreen = () => {
             disabled={loading}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'Inscription...' : 'S\'inscrire'}
+              {loading ? <ActivityIndicator size="small" color={COLORS.white} /> : 'S\'inscrire'}
             </Text>
           </TouchableOpacity>
 

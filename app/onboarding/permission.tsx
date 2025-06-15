@@ -3,14 +3,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 // import LottieView from 'lottie-react-native';
 import { COLORS } from "@/constants/Colors";
+import { requestLocationPermissions } from '@/services/location';
+import { configureNotifications } from '@/services/notifications';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Dimensions,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');

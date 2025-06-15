@@ -1,28 +1,20 @@
-// app/onboarding/index.js
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 // import LottieView from 'lottie-react-native';
+import { COLORS } from '@/constants/Colors';
 import React, { useRef, useState } from 'react';
 import {
-    Dimensions,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import PagerView from 'react-native-pager-view';
-
 const { width, height } = Dimensions.get('window');
 
-const COLORS = {
-  primary: '#4CAF50',
-  secondary: '#FF9800',
-  dark: '#212121',
-  gray: '#757575',
-  white: '#FFFFFF',
-  light: '#F5F5F5',
-};
+
 
 const onboardingData = [
   {

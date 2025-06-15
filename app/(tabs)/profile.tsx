@@ -3,17 +3,16 @@ import { logoutLivreur } from "@/redux/authSlice";
 import { Ionicons } from "@expo/vector-icons";
 import React from 'react';
 import {
-    Alert,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
-// app/(tabs)/profil.js
-export const ProfilScreen = () => {
+export default function ProfilScreen() {
   const { user } = useSelector((state) => state.auth);
   const { stats } = useSelector((state) => state.livraison);
   const dispatch = useDispatch();

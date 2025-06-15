@@ -1,4 +1,6 @@
 import { COLORS } from '@/constants/Colors';
+import { fetchHistoriqueLivraisons } from '@/redux/livraisonSlice';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -11,12 +13,11 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 
 
-export const HistoriqueScreen = () => {
-  const dispatch = useDispatch();
+export default function HistoriqueScreen() {
   const { historiqueLivraisons } = useSelector((state) => state.livraison);
   const [refreshing, setRefreshing] = useState(false);
   const [filterPeriod, setFilterPeriod] = useState('week'); // week, month, all
-
+  const dispatch = useDispatch();
   useEffect(() => {
     loadHistorique();
   }, []);

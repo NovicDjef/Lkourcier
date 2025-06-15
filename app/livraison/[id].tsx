@@ -1,4 +1,4 @@
-// app/livraison/[id].js
+import { COLORS } from '@/constants/Colors';
 import {
   fetchLivraisonDetails,
   updateLivraisonStatus,
@@ -20,18 +20,6 @@ import {
 } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { useDispatch, useSelector } from 'react-redux';
-
-const COLORS = {
-  primary: '#4CAF50',
-  secondary: '#FF9800',
-  dark: '#212121',
-  gray: '#757575',
-  white: '#FFFFFF',
-  light: '#F5F5F5',
-  error: '#F44336',
-  warning: '#FFC107',
-  success: '#4CAF50',
-};
 
 const LivraisonScreen = () => {
   const { id } = useLocalSearchParams();
