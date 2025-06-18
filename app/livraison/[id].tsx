@@ -678,6 +678,7 @@
 
 // app/livraison/[id].js
 import { COLORS } from '@/constants/Colors';
+import { getCommandeLivraisonAsync } from '@/redux/commandeSlice';
 import apiService from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -713,7 +714,7 @@ const DeliveryScreen = () => {
   const locationSubscription = useRef(null);
 
   useEffect(() => {
-    loadLivraisonDetails();
+    getCommandeLivraisonAsync();
     startLocationTracking();
     
     return () => {
@@ -725,11 +726,7 @@ const DeliveryScreen = () => {
 
   const loadLivraisonDetails = async () => {
     try {
-      const token = await AsyncStorage.getItem('livreurToken');
-      const response = await axios.get(
-        `${apiService}/commandes/livraison/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await dispatch(getCommandeLivraisonAsync(id));
 
       if (response.data.success) {
         setLivraison(response.data.livraison);
@@ -791,7 +788,7 @@ const DeliveryScreen = () => {
       const token = await AsyncStorage.getItem('livreurToken');
 
       await axios.put(
-        `${API_BASE_URL}/commandes/livreur/location`,
+        `${apiService}/commandes/livreur/location`,
         {
           livreurId: parseInt(livreurId),
           latitude: position.latitude,
@@ -920,7 +917,7 @@ const DeliveryScreen = () => {
               const token = await AsyncStorage.getItem('livreurToken');
 
               const response = await axios.post(
-                `${API_BASE_URL}/commandes/delivered`,
+                `${apiService}/commandes/delivered`,
                 {
                   livraisonId: parseInt(id),
                   livreurId: parseInt(livreurId)

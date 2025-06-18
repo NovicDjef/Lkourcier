@@ -1,4 +1,4 @@
-import { accepterSomeCommande, getSomeCommande } from '@/services/routeApi'; // Assurez-vous que le chemin d'importation est correct
+import { accepterSomeCommande, getSomeCommande, getSomeCommandeLivraison, updateSomeSatus } from '@/services/routeApi'; // Assurez-vous que le chemin d'importation est correct
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
 
@@ -47,7 +47,30 @@ export const accepterCommande = createAsyncThunk(
     }
   }
 );
-
+export const updateCommandeStatusAsync = createAsyncThunk(
+  'commande/updateStatus',
+  async ({ id, status }, { rejectWithValue }) => {
+    try {
+      const response = await updateSomeSatus(id, status)
+      return response.data.commande;
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour du statut de la commande:", error.response?.data);
+      return rejectWithValue(error.response?.data || { message: "Impossible de mettre à jour le statut de la commande" });
+    }
+  }
+);
+export const getCommandeLivraisonAsync = createAsyncThunk(
+  'commande/fetchCommandeLivraison',
+  async (livraisonId, { rejectWithValue }) => {
+    try {
+      const response = await getSomeCommandeLivraison(livraisonId);
+      return response.data;
+    } catch (error) {
+      console.error("Erreur lors de la récupération de la commande de livraison:", error.response?.data);
+      return rejectWithValue(error.response?.data || { message: "Impossible de récupérer la commande de livraison" });
+    }
+  }
+);
 // export const createCommandeAsync = createAsyncThunk(
 //     'commande/addSomeCommande',
 //     async (commandeData, { rejectWithValue }) => {
@@ -62,18 +85,18 @@ export const accepterCommande = createAsyncThunk(
 //     }
 //   );
 
-//   export const updateCommandeStatusAsync = createAsyncThunk(
-//     'commande/updateStatus',
-//     async ({ id, status }, { rejectWithValue }) => {
-//       try {
-//         const response = await apiService.patch(`/commande/${id}`, { status });
-//         return response.data.commande;
-//       } catch (error) {
-//         console.error("Erreur lors de la mise à jour du statut de la commande:", error.response?.data);
-//         return rejectWithValue(error.response?.data || { message: "Impossible de mettre à jour le statut de la commande" });
-//       }
-//     }
-//   );
+  // export const updateCommandeStatusAsync = createAsyncThunk(
+  //   'commande/updateStatus',
+  //   async ({ id, status }, { rejectWithValue }) => {
+  //     try {
+  //       const response = await apiService.patch(`/commande/${id}`, { status });
+  //       return response.data.commande;
+  //     } catch (error) {
+  //       console.error("Erreur lors de la mise à jour du statut de la commande:", error.response?.data);
+  //       return rejectWithValue(error.response?.data || { message: "Impossible de mettre à jour le statut de la commande" });
+  //     }
+  //   }
+  // );
 
   const commandeSlice = createSlice({
     name: 'commande',
@@ -131,6 +154,26 @@ export const accepterCommande = createAsyncThunk(
     //       state.status = 'failed';
     //       state.error = action.payload?.message || "Impossible de mettre à jour le statut de la commande";
     //     });
+
+    .addCase(updateCommandeStatusAsync.pending, (state) => {
+      state.status = 'loading';
+    })
+    .addCase(updateCommandeStatusAsync.fulfilled, (state, action) => {
+      state.status = 'succeeded';
+      // Mettre à jour le statut de la commande dans la liste des commandes
+      const index = state.commandes.findIndex(commande => commande.id === action.payload.id);
+      if (index !== -1) {
+        state.commandes[index] = action.payload;
+      }
+      // Si c'est la commande courante, mettre à jour currentCommande aussi
+      if (state.currentCommande && state.currentCommande.id === action.payload.id) {
+        state.currentCommande = action.payload;
+      }
+    })
+    .addCase(updateCommandeStatusAsync.rejected, (state, action) => {
+      state.status = 'failed';
+      state.error = action.payload?.message || "Impossible de mettre à jour le statut de la commande";
+    });
     },
   });
   

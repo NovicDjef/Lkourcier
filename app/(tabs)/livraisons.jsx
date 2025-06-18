@@ -1,8 +1,7 @@
 import { COLORS } from '@/constants/Colors';
-import { accepterCommande, getCommandesAsync } from '@/redux/commandeSlice';
+import { getCommandesAsync, updateCommandeStatusAsync } from '@/redux/commandeSlice';
 import {
   fetchActiveLivraisons,
-  fetchDisponiblesCommandes
 } from '@/redux/livraisonSlice';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -53,12 +52,12 @@ useEffect(() => {
     try {
       console.log(`📦 Acceptation commande ${commandeId}...`);
       
-      const result = await dispatch(accepterCommande({ 
-        commandeId, 
-        livreurId 
+      const result = await dispatch(updateCommandeStatusAsync({ 
+        id: commandeId, 
+        status: 'VALIDER' 
       }));
 
-      if (accepterCommande.fulfilled.match(result)) {
+      if (updateCommandeStatusAsync.fulfilled.match(result)) {
         Alert.alert(
           'Succès ! 🎉',
           'Commande acceptée avec succès !',
@@ -69,7 +68,7 @@ useEffect(() => {
             },
             {
               text: 'Continuer',
-              style: 'cancel'
+              onPress: () => router.push(`../livraison/${commandeId}`)
             }
           ]
         );
@@ -90,7 +89,7 @@ useEffect(() => {
       let refreshAction;
       
       if (activeTab === 'disponibles') {
-        refreshAction = dispatch(fetchDisponiblesCommandes());
+        refreshAction = dispatch(getCommandesAsync());
       } else {
         refreshAction = dispatch(fetchActiveLivraisons(livreurId));
       }
@@ -357,7 +356,7 @@ useEffect(() => {
         {isDisponibles && (
           <TouchableOpacity 
             style={styles.refreshButton} 
-            onPress={() => dispatch(fetchDisponiblesCommandes())}
+            onPress={() => dispatch(getCommandesAsync())}
           >
             <Ionicons name="refresh" size={20} color={COLORS.primary} />
             <Text style={styles.refreshButtonText}>Actualiser</Text>

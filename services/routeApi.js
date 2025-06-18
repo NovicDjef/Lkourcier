@@ -207,6 +207,10 @@ export const accepterSomeCommande = (commandeId, livreurId) => {
       return apiService.post('/signup', { username, phone });
      
   };
+
+  export const getSomeCommandeLivraison = (livraisonId) => {
+    return apiService.get(`/commandes/livraison/${livraisonId}`)
+  }
   
   // export const fetchSomePhone = async ({ username, phone }) => {
   //   try {
@@ -242,8 +246,8 @@ export const accepterSomeCommande = (commandeId, livreurId) => {
     return apiService.patch(`/update-user/${id}`, { username, phone });
   };
 
-  export const updateSomeSatus = (id) => {
-    return apiService.patch(`/commande/${id}`);
+  export const updateSomeSatus = (id, status) => {
+    return apiService.patch(`/commande/${id}`, { status });
   };
   
   
