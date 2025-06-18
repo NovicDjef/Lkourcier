@@ -99,6 +99,86 @@ import apiService from "./api";
     }
   }
 
+  export const fetchSomeAcceptCommande = (commandeId, livreurId) => {
+    return apiService.post('/commandes/accept', {
+       commandeId: parseInt(commandeId), 
+       livreurId: parseInt(livreurId) 
+      })
+  }
+  export const fetchSomeRejectCommande = (commandeId, livreurId) => {
+    return apiService.post('/commandes/reject', {
+      commandeId: parseInt(commandeId),
+      livreurId: parseInt(livreurId)
+    })
+  }
+  export const fetchSomeUpdateLivreurStatus = (livreurId, disponible) => {
+    return apiService.put('/livreur/status', {
+      livreurId: parseInt(livreurId),
+      disponible: disponible
+    })
+  }
+export const getSomeDetailsLivraison = (livraisonId) => {
+  return apiService.get(`/livraison/${livraisonId}`)
+}
+
+export const updateSomeCommandeLivred = (livraisonId, livreurId) => {
+  return apiService.put('/commandes/delivered', {
+    livraisonId: parseInt(livraisonId),
+    livreurId: parseInt(livreurId)
+  });
+}
+
+
+export const updateSomeLivreurLocation = (livreurId, latitude, longitude) => {
+  return apiService.put('/livreur/location', {
+    livreurId: parseInt(livreurId),
+    latitude: parseFloat(latitude),
+    longitude: parseFloat(longitude)
+  })
+}
+
+export const fetchSomeRegisterPushToken = (livreurId, pushToken) => {
+  return apiService.post('/livreur/register-push-token', {
+    livreurId: parseInt(livreurId),
+    pushToken: pushToken
+  })
+}
+
+export const getSomeHistoriqueLivraisons = (livreurId, period) => {
+  return apiService.get(`/livraisons/historique/${livreurId}?period=${period}`)
+}
+
+export const getSomeActiveLivraisons = (livreurId) => {
+  return apiService.get(`/livraisons/active/${livreurId}`)
+}
+
+
+export const getSomeStatsLivreur = (livreurId) => {
+  return apiService.get(`/livreur/${livreurId}/stats`)
+}
+
+export const getSomeDisponiblesCommandes = () => {
+  return apiService.get('/commandes/disponibles')
+}
+
+export const getSomeHistoriqueCommandes = () => {
+  return apiService.get('/commandes/historique')
+}
+
+// 
+export const updateSomeUpdateLivraisonStatus = (livraisonId, status, position = null) => {
+  return apiService.put(`/livraisons/${livraisonId}/status`, {
+    status,
+    position
+  });
+}
+
+export const accepterSomeCommande = (commandeId, livreurId) => {
+  return apiService.post(`/commandes/${commandeId}/accepter`, {
+    livreurId: parseInt(livreurId)
+  })
+}
+
   export const fetchSomeVerifyToken = (token) => {
     return apiService.post('/admin/verify', { token })
   }

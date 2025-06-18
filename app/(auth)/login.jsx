@@ -2,6 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 // import LottieView from 'lottie-react-native';
 import { COLORS } from '@/constants/Colors';
 import { loginLivreur } from '@/redux/authSlice';
+import { updateLivreurStatus } from '@/redux/livraisonSlice';
+import { Notifications } from 'expo';
+import Constants from 'expo-constants';
+import { Device } from 'expo-device';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -28,6 +32,60 @@ const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const getExpoPushToken = async () => {
+    try {
+      console.log('📱 Récupération token Expo Push...');
+      
+      // Vérifier si c'est un appareil physique
+      if (Device.isDevice) {
+        // Demander les permissions
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        
+        if (finalStatus !== 'granted') {
+          console.warn('❌ Permissions notifications refusées');
+          Alert.alert(
+            'Notifications requises',
+            'Activez les notifications pour recevoir les commandes.',
+            [
+              { text: 'Plus tard', style: 'cancel' },
+              { 
+                text: 'Paramètres', 
+                onPress: () => {
+                  Linking.openSettings();
+                }
+              }
+            ]
+          );
+          return null;
+        }
+
+        console.log('✅ Permissions notifications accordées');
+        
+        // Récupérer le token Expo Push
+        const token = (await Notifications.getExpoPushTokenAsync({
+          projectId: Constants.easConfig?.projectId,
+        })).data;
+        
+        console.log('🎯 Token Expo Push récupéré:', token.substring(0, 30) + '...');
+        return token;
+        
+      } else {
+        console.warn('🖥️ Émulateur détecté, token non disponible');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Erreur récupération token Expo:', error);
+      return null;
+    }
+  };
+
+
 
   const handleLogin = async () => {
     if (!formData.identifier || !formData.password) {
@@ -36,40 +94,73 @@ const LoginScreen = () => {
     }
 
     setLoading(true);
+    
     try {
-      console.log('Tentative de connexion avec:', formData);
+      console.log('🔑 Tentative de connexion avec:', {
+        identifier: formData.identifier,
+        password: '***masqué***'
+      });
+
+      // Étape 1: Connexion du livreur
       const result = await dispatch(loginLivreur(formData));
-      console.log('Résultat de la connexion:', result);
-      
+      console.log('📋 Résultat de la connexion:', result.type);
+
       if (loginLivreur.fulfilled.match(result)) {
-        Alert.alert('Succès', 
-          'Connexion réussie !',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              router.replace('/(tabs)/dashboard');
+        console.log('✅ Connexion réussie pour:', result.payload.user?.username);
+        
+        // Étape 2: Récupérer le token Expo Push
+        console.log('📱 Récupération du token Expo Push...');
+        const expoPushToken = await getExpoPushToken();
+        
+        // Étape 3: Envoyer le token au serveur
+        if (result.payload.user?.id) {
+          try {
+            console.log('📤 Envoi token Expo au serveur...');
+            
+            const statusResult = await dispatch(updateLivreurStatus({
+              livreurId: result.payload.user.id,
+              pushToken: expoPushToken,
+              deviceId: `expo-${Constants.sessionId || Date.now()}`,
+              disponible: false // Commencer hors ligne par défaut
+            }));
+
+            if (updateLivreurStatus.fulfilled.match(statusResult)) {
+              console.log('✅ Token Expo envoyé avec succès au serveur');
+            } else {
+              console.warn('⚠️ Erreur envoi token:', statusResult.payload);
             }
+          } catch (tokenError) {
+            console.warn('⚠️ Erreur lors de l\'envoi du token:', tokenError);
           }
-        ]);
+        }
+
+        // Étape 4: Navigation réussie
+        Alert.alert(
+          'Succès',
+          `Bienvenue ${result.payload.user?.prenom || result.payload.user?.username} !\n${expoPushToken ? '🔔 Notifications activées' : '⚠️ Notifications désactivées'}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                console.log('🏠 Navigation vers dashboard...');
+                router.replace('/(tabs)/dashboard');
+              }
+            }
+          ]
+        );
+
       } else {
-        console.log('Erreur de connexion:', result.payload);
+        console.log('❌ Erreur de connexion:', result.payload);
         Alert.alert('Erreur', result.payload || 'Erreur de connexion');
       }
+
     } catch (error) {
-      console.error('Erreur lors de la connexion:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue');
+      console.error('❌ Erreur lors de la connexion:', error);
+      Alert.alert('Erreur', 'Une erreur est survenue lors de la connexion');
     } finally {
       setLoading(false);
     }
   };
-  // useEffect(() => {
-  //   return () => {
-  //     if (error) {
-  //       dispatch(clearError());
-  //     }
-  //   };
-  // }, []);
 
   return (
     <KeyboardAvoidingView
@@ -147,7 +238,13 @@ const LoginScreen = () => {
               <Text style={styles.buttonText}>Se connecter</Text>
             )}
           </TouchableOpacity>
-
+            {/* {__DEV__ && (
+              <Button 
+                title="🔄 Refresh Token Firebase"
+                onPress={refreshFirebaseToken}
+                disabled={loading}
+              />
+            )} */}
           {/* Lien vers inscription */}
           <TouchableOpacity
             style={styles.linkContainer}

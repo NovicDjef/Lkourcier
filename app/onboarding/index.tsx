@@ -213,7 +213,7 @@ const OnboardingScreen = () => {
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={styles.startButton} onPress={handleNext}>
+          <TouchableOpacity style={styles.startButton} onPress={finishOnboarding}>
             <Text style={styles.startText}>Commencer</Text>
           </TouchableOpacity>
         )}

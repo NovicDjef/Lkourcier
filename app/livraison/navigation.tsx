@@ -1,7 +1,10 @@
 import React from 'react'
+import { Text, View } from 'react-native'
 
 export default function navigation() {
   return (
-    <div>navigation</div>
+    <View>
+      <Text>navigation</Text>
+    </View>
   )
 }

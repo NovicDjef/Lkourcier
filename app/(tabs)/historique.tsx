@@ -17,19 +17,26 @@ export default function HistoriqueScreen() {
   const { historiqueLivraisons } = useSelector((state) => state.livraison);
   const [refreshing, setRefreshing] = useState(false);
   const [filterPeriod, setFilterPeriod] = useState('week'); // week, month, all
+  const user = useSelector(state => state.auth.user);
   const dispatch = useDispatch();
+
   useEffect(() => {
-    loadHistorique();
-  }, []);
-
-  const loadHistorique = () => {
-    dispatch(fetchHistoriqueLivraisons(filterPeriod));
+    if (user?.id) {
+      loadHistorique(user.id);
+    }
+  }, [user, filterPeriod]);
+  
+  const loadHistorique = (livreurId) => {
+    dispatch(fetchHistoriqueLivraisons({ livreurId, period: filterPeriod }));
   };
-
+  
   const onRefresh = React.useCallback(() => {
+    if (!user?.id) return;
     setRefreshing(true);
-    dispatch(fetchHistoriqueLivraisons(filterPeriod)).finally(() => setRefreshing(false));
-  }, [filterPeriod]);
+    dispatch(fetchHistoriqueLivraisons({ livreurId: user.id, period: filterPeriod }))
+      .finally(() => setRefreshing(false));
+  }, [filterPeriod, user]);
+
 
   const FilterButton = ({ period, label, isActive, onPress }) => (
     <TouchableOpacity

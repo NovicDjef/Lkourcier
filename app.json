@@ -1,22 +1,44 @@
 {
   "expo": {
     "name": "Lkourcier",
-    "slug": "Lkourcier",
+    "slug": "lkourcier",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "lkourcier",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lkourcier.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Cette application nécessite l'accès à votre position pour vous localiser lors des livraisons.",
+        "NSLocationAlwaysUsageDescription": "Cette application nécessite l'accès à votre position en arrière-plan pour suivre vos livraisons.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cette application nécessite l'accès à votre position pour vous localiser lors des livraisons.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.lkourcier.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -25,6 +47,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Cette application nécessite l'accès à votre position pour vous localiser lors des livraisons."
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -35,8 +63,11 @@
         }
       ]
     ],
-    "experiments": {
-      "typedRoutes": true
-    }
+    "extra": {
+      "eas": {
+        "projectId": "10ceb5a1-1bf6-4d94-ae20-ec53efa03beb"
+      }
+    },
+    "owner": "novic"
   }
 }
