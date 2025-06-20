@@ -1,8 +1,11 @@
 import { COLORS } from '@/constants/Colors';
 import { fetchHistoriqueLivraisons } from '@/redux/livraisonSlice';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -13,30 +16,110 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 
 
+
 export default function HistoriqueScreen() {
-  const { historiqueLivraisons } = useSelector((state) => state.livraison);
+  // ✅ Récupération complète du state livraison
+  const livraisonState = useSelector(state => state.livraison);
+  const { historiqueLivraisons, historiqueLoading, historiqueError } = livraisonState;
+  
   const [refreshing, setRefreshing] = useState(false);
-  const [filterPeriod, setFilterPeriod] = useState('week'); // week, month, all
+  const [filterPeriod, setFilterPeriod] = useState('week');
   const user = useSelector(state => state.auth.user);
+  const livreurId = user?.id;
   const dispatch = useDispatch();
 
+  // ✅ DEBUG COMPLET - AJOUTEZ CES LOGS
+  console.log("=== 🔍 DEBUG HISTORIQUE COMPLET ===");
+  console.log("🔥 État Redux livraison complet:", JSON.stringify(livraisonState, null, 2));
+  console.log("📊 historiqueLivraisons:", historiqueLivraisons);
+  console.log("📊 Type de historiqueLivraisons:", typeof historiqueLivraisons);
+  console.log("📊 Array.isArray(historiqueLivraisons):", Array.isArray(historiqueLivraisons));
+  console.log("📊 historiqueLivraisons?.length:", historiqueLivraisons?.length);
+  console.log("⏳ historiqueLoading:", historiqueLoading);
+  console.log("❌ historiqueError:", historiqueError);
+  console.log("👤 livreurId:", livreurId);
+  console.log("📅 filterPeriod:", filterPeriod);
+  console.log("👤 user complet:", user);
+
+  // ✅ Log détaillé des données si elles existent
+  if (historiqueLivraisons && historiqueLivraisons.length > 0) {
+    console.log("📦 Première livraison détaillée:");
+    console.log(JSON.stringify(historiqueLivraisons[0], null, 2));
+  }
+
   useEffect(() => {
-    if (user?.id) {
-      loadHistorique(user.id);
+    console.log("🔄 useEffect déclenché - loadHistorique");
+    if (livreurId) {
+      loadHistorique(livreurId);
+    } else {
+      console.log("❌ Pas de livreurId dans useEffect");
     }
-  }, [user, filterPeriod]);
+  }, [livreurId, filterPeriod]);
   
-  const loadHistorique = (livreurId) => {
-    dispatch(fetchHistoriqueLivraisons({ livreurId, period: filterPeriod }));
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("🔄 useFocusEffect déclenché");
+      if (livreurId) {
+        loadHistorique(livreurId);
+      }
+    }, [livreurId, filterPeriod])
+  );
+  
+  const loadHistorique = async (livreurId) => {
+    console.log(`📜 === DEBUT loadHistorique ===`);
+    console.log(`📜 livreurId: ${livreurId}, period: ${filterPeriod}`);
+    
+    try {
+      const action = { livreurId, period: filterPeriod };
+      console.log("📡 Action à dispatcher:", action);
+      
+      const result = await dispatch(fetchHistoriqueLivraisons(action));
+      
+      console.log("📡 Résultat dispatch complet:", result);
+      console.log("📡 Type de résultat:", result.type);
+      console.log("📡 Payload:", result.payload);
+      
+      if (fetchHistoriqueLivraisons.fulfilled.match(result)) {
+        console.log("✅ loadHistorique réussi");
+        console.log("✅ Données reçues:", result.payload);
+      } else if (fetchHistoriqueLivraisons.rejected.match(result)) {
+        console.error("❌ loadHistorique échoué:", result.payload);
+        console.error("❌ Erreur complète:", result.error);
+      } else {
+        console.warn("⚠️ Résultat inattendu:", result);
+      }
+    } catch (error) {
+      console.error("❌ Exception dans loadHistorique:", error);
+    }
+    
+    console.log(`📜 === FIN loadHistorique ===`);
   };
   
-  const onRefresh = React.useCallback(() => {
-    if (!user?.id) return;
+  const onRefresh = React.useCallback(async () => {
+    if (!livreurId) {
+      console.log("❌ Pas de livreurId pour refresh");
+      return;
+    }
+    
+    console.log("🔄 === DEBUT REFRESH ===");
     setRefreshing(true);
-    dispatch(fetchHistoriqueLivraisons({ livreurId: user.id, period: filterPeriod }))
-      .finally(() => setRefreshing(false));
-  }, [filterPeriod, user]);
+    
+    try {
+      await dispatch(fetchHistoriqueLivraisons({ livreurId, period: filterPeriod }));
+      console.log("✅ Refresh terminé");
+    } catch (error) {
+      console.error("❌ Erreur refresh:", error);
+      Alert.alert('Erreur', 'Impossible de rafraîchir l\'historique');
+    } finally {
+      setRefreshing(false);
+      console.log("🔄 === FIN REFRESH ===");
+    }
+  }, [filterPeriod, livreurId, dispatch]);
 
+  const handlePeriodChange = (newPeriod) => {
+    console.log(`📅 Changement période: ${filterPeriod} -> ${newPeriod}`);
+    setFilterPeriod(newPeriod);
+  };
 
   const FilterButton = ({ period, label, isActive, onPress }) => (
     <TouchableOpacity
@@ -49,54 +132,110 @@ export default function HistoriqueScreen() {
     </TouchableOpacity>
   );
 
-  const renderHistoriqueItem = ({ item }) => (
-    <View style={styles.historiqueCard}>
-      <View style={styles.cardHeader}>
-        <View style={styles.commandeInfo}>
-          <Text style={styles.commandeId}>Commande #{item.commande.id}</Text>
-          <Text style={styles.dateText}>
-            {new Date(item.heureLivraison).toLocaleDateString('fr-FR')}
-          </Text>
+  // ✅ RENDERITEM AVEC GESTION DEFENSIVE ET DEBUG
+  const renderHistoriqueItem = ({ item, index }) => {
+    console.log(`🎨 Render item ${index}:`, JSON.stringify(item, null, 2));
+    
+    // ✅ Gestion défensive des données
+    const commandeData = item.commande || item;
+    const livraisonId = item.id || `temp-${index}`;
+    const commandeId = commandeData.id || item.commandeId || 'N/A';
+    const prix = commandeData.prix || item.prix || 'N/A';
+    const heureLivraison = item.heureLivraison || item.createdAt || new Date().toISOString();
+    
+    // Debug des données extraites
+    console.log(`🔍 Item ${index} - commandeData:`, commandeData);
+    console.log(`🔍 Item ${index} - prix: ${prix}, commandeId: ${commandeId}`);
+    
+    return (
+      <View style={styles.historiqueCard}>
+        <View style={styles.cardHeader}>
+          <View style={styles.commandeInfo}>
+            <Text style={styles.commandeId}>Commande #{commandeId}</Text>
+            <Text style={styles.dateText}>
+              {new Date(heureLivraison).toLocaleDateString('fr-FR')}
+            </Text>
+          </View>
+          <Text style={styles.montant}>{prix} FCFA</Text>
         </View>
-        <Text style={styles.montant}>{item.commande.prix} FCFA</Text>
-      </View>
 
-      <View style={styles.cardBody}>
-        <View style={styles.addressRow}>
-          <Ionicons name="restaurant" size={16} color={COLORS.secondary} />
-          <Text style={styles.addressText} numberOfLines={1}>
-            {item.commande.plat.restaurant.name}
-          </Text>
+        <View style={styles.cardBody}>
+          <View style={styles.addressRow}>
+            <Ionicons name="restaurant" size={16} color={COLORS.secondary} />
+            <Text style={styles.addressText} numberOfLines={1}>
+              {commandeData.plat?.categorie?.menu?.restaurant?.name || 
+               commandeData.plat?.restaurant?.name || 
+               commandeData.plat?.name || 
+               'Restaurant'}
+            </Text>
+          </View>
+          
+          <View style={styles.addressRow}>
+            <Ionicons name="location" size={16} color={COLORS.primary} />
+            <Text style={styles.addressText} numberOfLines={1}>
+              {commandeData.position || 'Position non définie'}
+            </Text>
+          </View>
+          <View style={styles.clientRow}>
+            <Ionicons name="person" size={16} color={COLORS.gray} />
+            <Text style={styles.clientText}>
+              {commandeData.user?.username || 'Client'} - {commandeData.user?.phone}
+            </Text>
+          </View>
         </View>
-        
-        <View style={styles.addressRow}>
-          <Ionicons name="location" size={16} color={COLORS.primary} />
-          <Text style={styles.addressText} numberOfLines={1}>
-            {item.commande.position}
-          </Text>
+
+        <View style={styles.historiqueFooter}>
+          <View style={styles.timeInfo}>
+            <Text style={styles.timeLabel}>Durée:</Text>
+            <Text style={styles.timeValue}>
+              {item.heureAssignation 
+                ? Math.round((new Date(heureLivraison) - new Date(item.heureAssignation)) / 60000)
+                : '--'
+              } min
+            </Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: COLORS.success + '20' }]}>
+            <Text style={[styles.statusText, { color: COLORS.success }]}>
+              Livrée
+            </Text>
+          </View>
         </View>
       </View>
+    );
+  };
 
-      <View style={styles.historiqueFooter}>
-        <View style={styles.timeInfo}>
-          <Text style={styles.timeLabel}>Durée:</Text>
-          <Text style={styles.timeValue}>
-            {Math.round((new Date(item.heureLivraison) - new Date(item.heureAssignation)) / 60000)} min
-          </Text>
+  // ✅ VÉRIFICATIONS AVANT RENDU
+  console.log("🎭 === AVANT RENDU ===");
+  console.log("🎭 Condition loading:", historiqueLoading && !refreshing);
+  console.log("🎭 Condition error:", !!historiqueError);
+  console.log("🎭 Condition empty:", !historiqueLivraisons || historiqueLivraisons.length === 0);
+  console.log("🎭 Condition normale:", historiqueLivraisons && historiqueLivraisons.length > 0);
+
+  // ✅ Loading state
+  if (historiqueLoading && !refreshing) {
+    console.log("🎭 RENDU: Loading");
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Historique</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: COLORS.success + '20' }]}>
-          <Text style={[styles.statusText, { color: COLORS.success }]}>
-            Livrée
-          </Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Chargement de l'historique...</Text>
         </View>
       </View>
-    </View>
-  );
+    );
+  }
 
+  // ✅ Rendu principal
+  console.log("🎭 RENDU: Principal");
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Historique</Text>
+        <Text style={styles.subtitle}>
+          {historiqueLivraisons?.length || 0} livraison{(historiqueLivraisons?.length || 0) !== 1 ? 's' : ''} terminée{(historiqueLivraisons?.length || 0) !== 1 ? 's' : ''}
+        </Text>
       </View>
 
       {/* Filtres */}
@@ -105,35 +244,63 @@ export default function HistoriqueScreen() {
           period="week"
           label="Cette semaine"
           isActive={filterPeriod === 'week'}
-          onPress={() => setFilterPeriod('week')}
+          onPress={() => handlePeriodChange('week')}
         />
         <FilterButton
           period="month"
           label="Ce mois"
           isActive={filterPeriod === 'month'}
-          onPress={() => setFilterPeriod('month')}
+          onPress={() => handlePeriodChange('month')}
         />
         <FilterButton
           period="all"
           label="Tout"
           isActive={filterPeriod === 'all'}
-          onPress={() => setFilterPeriod('all')}
+          onPress={() => handlePeriodChange('all')}
         />
       </View>
 
-      {historiqueLivraisons.length === 0 ? (
+      {/* Debug info (à retirer en production) */}
+      <View style={{ padding: 10, backgroundColor: '#f0f0f0', margin: 10 }}>
+        <Text style={{ fontSize: 12, color: '#666' }}>
+          DEBUG: {historiqueLivraisons?.length || 0} items | Loading: {historiqueLoading ? 'OUI' : 'NON'} | Error: {historiqueError || 'NONE'}
+        </Text>
+      </View>
+
+      {/* Gestion des erreurs */}
+      {historiqueError && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Erreur: {historiqueError}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={() => loadHistorique(livreurId)}
+          >
+            <Text style={styles.retryText}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Liste ou état vide */}
+      {(!historiqueLivraisons || historiqueLivraisons.length === 0) ? (
         <View style={styles.emptyState}>
           <Ionicons name="time" size={80} color={COLORS.gray} />
           <Text style={styles.emptyTitle}>Aucun historique</Text>
           <Text style={styles.emptyText}>
             Vos livraisons terminées apparaîtront ici.
           </Text>
+          <TouchableOpacity 
+            style={styles.refreshButton} 
+            onPress={onRefresh}
+          >
+            <Ionicons name="refresh" size={20} color={COLORS.primary} />
+            <Text style={styles.refreshButtonText}>Actualiser</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
           data={historiqueLivraisons}
           renderItem={renderHistoriqueItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => item.id?.toString() || `item-${index}`}
           contentContainerStyle={styles.listContainer}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -143,7 +310,8 @@ export default function HistoriqueScreen() {
       )}
     </View>
   );
-};
+}
+
 
 const styles = StyleSheet.create({
   container: {
@@ -404,4 +572,68 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.dark,
   },
+
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  
+  // ✅ NOUVEAU: Loading Text
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: COLORS.gray || '#6c757d',
+    fontWeight: '500',
+  },
+  errorContainer: {
+    margin: 20,
+    padding: 16,
+    backgroundColor: COLORS.error + '10' || '#dc354520',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.error || '#dc3545',
+    alignItems: 'center',
+  },
+
+  errorText: {
+    fontSize: 14,
+    color: COLORS.error || '#dc3545',
+    textAlign: 'center',
+    marginBottom: 12,
+    fontWeight: '500',
+  },
+  retryButton: {
+    backgroundColor: COLORS.error || '#dc3545',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  
+  // ✅ NOUVEAU: Retry Text
+  retryText: {
+    color: COLORS.white || '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+   refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary + '10' || '#007bff10',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.primary || '#007bff',
+  },
+  refreshButtonText: {
+    marginLeft: 12,
+    fontSize: 14,
+    color: COLORS.primary || '#007bff',
+    fontWeight: '600',
+  },
+
+
 });

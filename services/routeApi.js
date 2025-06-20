@@ -121,6 +121,11 @@ export const getSomeDetailsLivraison = (livraisonId) => {
   return apiService.get(`/livraison/${livraisonId}`)
 }
 
+export const postSomeLivraison = (livraisonData) => {
+  return apiService.post('/livraison', livraisonData);
+};
+
+
 export const updateSomeCommandeLivred = (livraisonId, livreurId) => {
   return apiService.put('/commandes/delivered', {
     livraisonId: parseInt(livraisonId),
@@ -246,8 +251,8 @@ export const accepterSomeCommande = (commandeId, livreurId) => {
     return apiService.patch(`/update-user/${id}`, { username, phone });
   };
 
-  export const updateSomeSatus = (id, status) => {
-    return apiService.patch(`/commande/${id}`, { status });
+  export const updateSomeSatus = (id, status, livreurId) => {
+    return apiService.patch(`/commande/${id}`, { status, livreurId });
   };
   
   

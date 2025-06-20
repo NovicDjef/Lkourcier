@@ -678,8 +678,8 @@
 
 // app/livraison/[id].js
 import { COLORS } from '@/constants/Colors';
-import { getCommandeLivraisonAsync } from '@/redux/commandeSlice';
 import apiService from '@/services/api';
+import { getSomeCommandeLivraison } from '@/services/routeApi';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -714,7 +714,8 @@ const DeliveryScreen = () => {
   const locationSubscription = useRef(null);
 
   useEffect(() => {
-    getCommandeLivraisonAsync();
+    loadLivraisonDetails();
+    // getCommandeLivraisonAsync();
     startLocationTracking();
     
     return () => {
@@ -726,7 +727,8 @@ const DeliveryScreen = () => {
 
   const loadLivraisonDetails = async () => {
     try {
-      const response = await dispatch(getCommandeLivraisonAsync(id));
+      const token = await AsyncStorage.getItem('livreurToken');
+      const response = await getSomeCommandeLivraison(id);
 
       if (response.data.success) {
         setLivraison(response.data.livraison);

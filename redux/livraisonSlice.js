@@ -1,5 +1,5 @@
 // redux/livraisonSlice.js - Version propre et corrigée
-import { getSomeCommande, getSomeDetailsLivraison, getSomeHistoriqueLivraisons, getSomeStatsLivreur, updateSomeCommandeLivred, updateSomeLivreurLocation, updateSomeUpdateLivraisonStatus } from '@/services/routeApi';
+import { getSomeActiveLivraisons, getSomeCommande, getSomeDetailsLivraison, getSomeHistoriqueLivraisons, getSomeStatsLivreur, postSomeLivraison, updateSomeCommandeLivred, updateSomeLivreurLocation, updateSomeUpdateLivraisonStatus } from '@/services/routeApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
@@ -38,6 +38,36 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 //     }
 //   }
 // );
+export const postLivraison = createAsyncThunk(
+  'livraison/postLivraison',
+  async (livraisonData, { rejectWithValue }) => {
+    try {
+      if (!livraisonData?.livreurId || !livraisonData?.userId) {
+        return rejectWithValue('livreurId et userId sont requis');
+      }
+
+      const response = await postSomeLivraison(livraisonData);
+
+      if (!response?.data) {
+        return rejectWithValue('Réponse serveur invalide');
+      }
+
+      console.log('✅ Livraison postée avec succès:', response.data);
+      return response.data;
+
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Erreur lors de la création de la livraison';
+
+      console.error('❌ Erreur création livraison:', message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
+
 
 export const fetchDisponiblesCommandes = createAsyncThunk(
   'livraison/fetchDisponiblesCommandes',
@@ -215,24 +245,63 @@ export const fetchLivreurStats = createAsyncThunk(
 );
 
 // ✅ Récupérer l'historique des livraisons
+// export const fetchHistoriqueLivraisons = createAsyncThunk(
+//   'livraison/fetchHistoriqueLivraisons',
+//   async ({ livreurId, period = 'all' }, { rejectWithValue }) => {
+//     try {
+//       console.log(`📜 Récupération historique livraisons pour livreur ${livreurId}, période: ${period}`);
+      
+//       // ✅ Conversion des périodes en jours
+//       let periodDays;
+//       switch (period) {
+//         case 'week': periodDays = '7'; break;
+//         case 'month': periodDays = '30'; break;
+//         case 'all': periodDays = 'all'; break;
+//         default: periodDays = period;
+//       }
+      
+//       const response = await getSomeHistoriqueLivraisons(livreurId, period);
+      
+//       console.log("📡 Réponse API historique:", response.data);
+      
+//       if (response && response.success) {
+//         console.log(`✅ ${response.data.livraisons?.length || 0} livraisons dans l'historique`);
+//         return response.data.livraisons || [];
+//       } else {
+//         console.log("⚠️ Réponse API sans succès:", response.data);
+//         return [];
+//       }
+//     } catch (error) {
+//       console.error("❌ Erreur fetchHistoriqueLivraisons:", error);
+//       console.error("❌ Error response:", error.response?.data);
+//       return rejectWithValue(
+//         error.response?.data?.message || 'Erreur lors de la récupération de l\'historique'
+//       );
+//     }
+//   }
+// );
+
+// ✅ VERSION ULTRA-SIMPLE (test rapide)
 export const fetchHistoriqueLivraisons = createAsyncThunk(
   'livraison/fetchHistoriqueLivraisons',
-  async ({ livreurId, period = '30' }, { rejectWithValue }) => {
+  async ({ livreurId, period = 'all' }, { rejectWithValue }) => {
     try {
-      console.log(`📜 Récupération historique livraisons...`);
+      let periodDays;
+            switch (period) {
+              case 'week': periodDays = '7'; break;
+              case 'month': periodDays = '30'; break;
+              case 'all': periodDays = 'all'; break;
+              default: periodDays = period;
+            }
+      const response = await getSomeHistoriqueLivraisons(livreurId, period);
       
-      const response = await getSomeHistoriqueLivraisons(livreurId, period)
+      // ✅ DIRECT: Pas de vérification de success, juste récupérer les livraisons
+      const livraisons = response.data?.livraisons || [];
+      console.log("✅ Livraisons directement extraites:", livraisons);
+      return livraisons;
       
-      if (response.data && response.data.success) {
-        console.log(`✅ ${response.data.livraisons?.length || 0} livraisons dans l'historique`);
-        return response.data.livraisons || [];
-      } else {
-        return [];
-      }
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message || 'Erreur historique livraisons'
-      );
+      return rejectWithValue('Erreur API');
     }
   }
 );
@@ -242,6 +311,12 @@ export const fetchHistoriqueLivraisons = createAsyncThunk(
 const livraisonSlice = createSlice({
   name: 'livraison',
   initialState: {
+
+    // Livraisons
+    postLivraisonLoading: false,
+    postLivraisonError: null,
+    livraisons: [],
+
     // Commandes disponibles
     commandesDisponibles: [],
     commandesDisponiblesLoading: false,
@@ -256,6 +331,7 @@ const livraisonSlice = createSlice({
     historiqueLivraisons: [],
     historiqueLoading: false,
     historiqueError: null,
+
     
     // Détails d'une livraison
     currentLivraison: null,
@@ -375,6 +451,21 @@ const livraisonSlice = createSlice({
         state.commandesDisponiblesError = action.payload;
         state.loading = false;
       })
+
+       // 🚚 Création d'une livraison
+       .addCase(postLivraison.pending, (state) => {
+        state.postLivraisonLoading = true;
+        state.postLivraisonError = null;
+      })
+      .addCase(postLivraison.fulfilled, (state, action) => {
+        state.postLivraisonLoading = false;
+        state.livraisons.push(action.payload);
+      })
+      .addCase(postLivraison.rejected, (state, action) => {
+        state.postLivraisonLoading = false;
+        state.postLivraisonError = action.payload;
+      })
+      
       
       // ✅ Acceptation d'une commande
       // .addCase(accepterCommande.pending, (state, action) => {
@@ -511,16 +602,23 @@ const livraisonSlice = createSlice({
       
       // ✅ Historique
       .addCase(fetchHistoriqueLivraisons.pending, (state) => {
+        console.log("🔄 Reducer: fetchHistoriqueLivraisons.pending");
         state.historiqueLoading = true;
         state.historiqueError = null;
       })
       .addCase(fetchHistoriqueLivraisons.fulfilled, (state, action) => {
+        console.log("✅ Reducer: fetchHistoriqueLivraisons.fulfilled");
+        console.log("✅ Payload reçu dans reducer:", action.payload);
         state.historiqueLoading = false;
-        state.historiqueLivraisons = action.payload;
+        state.historiqueLivraisons = action.payload || []; // ✅ Stockage des données
+        state.historiqueError = null;
       })
       .addCase(fetchHistoriqueLivraisons.rejected, (state, action) => {
+        console.log("❌ Reducer: fetchHistoriqueLivraisons.rejected");
+        console.error("❌ Erreur dans reducer:", action.payload);
         state.historiqueLoading = false;
         state.historiqueError = action.payload;
+        state.historiqueLivraisons = []; // ✅ Reset en cas d'erreur
       });
   },
 });
