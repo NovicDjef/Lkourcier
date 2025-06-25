@@ -1,5 +1,5 @@
+import { fetchRegisterPushToken } from '@/redux/livraisonSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
@@ -91,17 +91,7 @@ class PushNotificationService {
       const livreurId = await AsyncStorage.getItem('livreurId');
 
       if (token && this.token) {
-        await axios.post(
-          'http://your-api-url.com/api/livreur/register-push-token',
-          {
-            pushToken: this.token,
-            livreurId: livreurId,
-            platform: Platform.OS,
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        await fetchRegisterPushToken({ livreurId, pushToken: this.token });
         
         console.log('Token enregistré sur le serveur');
       }

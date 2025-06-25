@@ -28,19 +28,7 @@ export default function HistoriqueScreen() {
   const livreurId = user?.id;
   const dispatch = useDispatch();
 
-  // ✅ DEBUG COMPLET - AJOUTEZ CES LOGS
-  console.log("=== 🔍 DEBUG HISTORIQUE COMPLET ===");
-  console.log("🔥 État Redux livraison complet:", JSON.stringify(livraisonState, null, 2));
-  console.log("📊 historiqueLivraisons:", historiqueLivraisons);
-  console.log("📊 Type de historiqueLivraisons:", typeof historiqueLivraisons);
-  console.log("📊 Array.isArray(historiqueLivraisons):", Array.isArray(historiqueLivraisons));
-  console.log("📊 historiqueLivraisons?.length:", historiqueLivraisons?.length);
-  console.log("⏳ historiqueLoading:", historiqueLoading);
-  console.log("❌ historiqueError:", historiqueError);
-  console.log("👤 livreurId:", livreurId);
-  console.log("📅 filterPeriod:", filterPeriod);
-  console.log("👤 user complet:", user);
-
+  console.debug("historiqueLivraisons:", livreurId);
   // ✅ Log détaillé des données si elles existent
   if (historiqueLivraisons && historiqueLivraisons.length > 0) {
     console.log("📦 Première livraison détaillée:");
@@ -75,9 +63,7 @@ export default function HistoriqueScreen() {
       
       const result = await dispatch(fetchHistoriqueLivraisons(action));
       
-      console.log("📡 Résultat dispatch complet:", result);
-      console.log("📡 Type de résultat:", result.type);
-      console.log("📡 Payload:", result.payload);
+  
       
       if (fetchHistoriqueLivraisons.fulfilled.match(result)) {
         console.log("✅ loadHistorique réussi");
@@ -89,7 +75,6 @@ export default function HistoriqueScreen() {
         console.warn("⚠️ Résultat inattendu:", result);
       }
     } catch (error) {
-      console.error("❌ Exception dans loadHistorique:", error);
     }
     
     console.log(`📜 === FIN loadHistorique ===`);
@@ -97,11 +82,9 @@ export default function HistoriqueScreen() {
   
   const onRefresh = React.useCallback(async () => {
     if (!livreurId) {
-      console.log("❌ Pas de livreurId pour refresh");
       return;
     }
     
-    console.log("🔄 === DEBUT REFRESH ===");
     setRefreshing(true);
     
     try {

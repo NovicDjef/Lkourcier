@@ -58,7 +58,7 @@ export default function LivraisonsScreen() {
     dispatch(getCommandesAsync());
   }, [dispatch]);
 
-  // ✅ Fonction pour accepter une commande
+  
   const handleAccepterCommande = useCallback(async (commandeId) => {
     if (!livreurId) {
       Alert.alert('Erreur', 'Identifiant livreur manquant');
@@ -69,17 +69,16 @@ export default function LivraisonsScreen() {
     try {
       console.log(`📦 Acceptation commande ${commandeId} par livreur ${livreurId}...`);
       
-      // ✅ IMPORTANT: Envoyer le livreurId pour associer la commande
+     
       const result = await dispatch(updateCommandeStatusAsync({ 
         id: commandeId, 
         status: 'VALIDER',
-        livreurId: livreurId // 🔥 Clé : associer le livreur à la commande
+        livreurId: livreurId 
       }));
 
       if (updateCommandeStatusAsync.fulfilled.match(result)) {
         console.log("✅ Commande acceptée, rechargement des données...");
         
-        // Recharger toutes les commandes
         await dispatch(getCommandesAsync());
         
         Alert.alert(

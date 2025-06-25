@@ -244,6 +244,21 @@ export const fetchLivreurStats = createAsyncThunk(
   }
 );
 
+export const fetchRegisterPushToken = createAsyncThunk(
+  'livraison/fetchRegisterPushToken',
+  async ({ livreurId, pushToken }, { rejectWithValue }) => {
+    try {
+      const response = await fetchSomeRegisterPushToken(livreurId, pushToken)
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erreur récupération push token:', error.response?.data);
+      return rejectWithValue(
+        error.response?.data?.message || 'Erreur lors de la récupération du push token'
+      );
+    }
+  }
+);
+
 // ✅ Récupérer l'historique des livraisons
 // export const fetchHistoriqueLivraisons = createAsyncThunk(
 //   'livraison/fetchHistoriqueLivraisons',

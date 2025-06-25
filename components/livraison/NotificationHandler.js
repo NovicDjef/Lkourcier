@@ -15,7 +15,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 
 
-export const NotificationHandler = () => {
+export default function NotificationHandler() {
   const dispatch = useDispatch();
   const { showNotificationModal, pendingCommande, loading } = useSelector(
     (state) => state.livraison

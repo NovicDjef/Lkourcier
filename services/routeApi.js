@@ -149,6 +149,8 @@ export const fetchSomeRegisterPushToken = (livreurId, pushToken) => {
   })
 }
 
+
+
 export const getSomeHistoriqueLivraisons = (livreurId, period) => {
   return apiService.get(`/livraisons/historique/${livreurId}?period=${period}`)
 }
