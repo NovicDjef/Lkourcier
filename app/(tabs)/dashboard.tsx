@@ -554,11 +554,7 @@ export default function DashboardScreen() {
       console.warn('📱 Synchronisation statut utilisateur:', user.disponible);
       setIsOnline(user.disponible);
 
-      Animated.timing(fadeAnim, {
-        toValue: user.disponible ? 0 : 1, // 0 quand en ligne (cacher l'alerte), 1 quand hors ligne (montrer l'alerte)
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      
     }
   }, [user?.disponible]);
 
@@ -630,12 +626,6 @@ export default function DashboardScreen() {
       console.log('🔄 Changement statut:', { livreurId, newStatus });
       setIsOnline(newStatus);
 
-          // Animation de l'alerte
-    Animated.timing(fadeAnim, {
-      toValue: newStatus ? 0 : 1, // 0 quand en ligne, 1 quand hors ligne
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
  
       // const result = await dispatch(updateLivreurStatus({
       //   livreurId: parseInt(livreurId),
@@ -845,10 +835,7 @@ export default function DashboardScreen() {
       <View style={styles.classicHeader}>
         <View style={styles.headerContent}>
           <View style={styles.profileSection}>
-            <Image
-              source={{ 
-                uri: user?.image || 'https://via.placeholder.com/60' 
-              }}
+            <Image source={require('../../assets/avatar/21.avif')}
               style={styles.classicProfileImage}
             />
             <View style={styles.headerText}>
@@ -932,7 +919,7 @@ export default function DashboardScreen() {
 
         {/* Alerte hors ligne */}
         {!isOnline && (
-          <Animated.View style={[styles.classicOfflineAlert, { opacity: fadeAnim }]}>
+          <Animated.View style={[styles.classicOfflineAlert, { opacity: 1 }]}>
             <Ionicons name="wifi-outline" size={24} color={COLORS.warning} />
             <View style={styles.alertContent}>
               <Text style={styles.alertTitle}>Vous êtes hors ligne</Text>
@@ -1258,7 +1245,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     marginRight: 15,
     borderWidth: 2,
-    borderColor: '#ecf0f1',
+    borderColor: COLORS.primary + 80,
   },
   headerText: {
     flex: 1,
