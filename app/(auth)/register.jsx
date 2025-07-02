@@ -56,9 +56,9 @@ const RegisterScreen = () => {
     }
 
     // Validation du numéro de téléphone
-    const phoneRegex = /^[0-9]{10}$/;
+    const phoneRegex = /^[0-9]{9}$/;
     if (!phoneRegex.test(formData.telephone)) {
-      Alert.alert('Erreur', 'Veuillez entrer un numéro de téléphone valide (10 chiffres)');
+      Alert.alert('Erreur', 'Veuillez entrer un numéro de téléphone valide (09 chiffres)');
       return false;
     }
 

@@ -4,7 +4,8 @@ import axios from 'axios';
 
 const apiService = axios.create({
   // baseURL: 'https://nguetioofa.dev:4040/',
-  baseURL: 'http://192.168.1.86:3000',  //chez moi ordinateur local
+  // baseURL: 'http://192.168.1.86:3000',  //chez moi ordinateur local
+  baseURL: 'https://api.novic.dev/',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

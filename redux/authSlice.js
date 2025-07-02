@@ -111,7 +111,6 @@ export const registerLivreur = createAsyncThunk(
         return rejectWithValue('Réponse invalide du serveur');
       }
     } catch (error) {
-      console.error('❌ Erreur inscription:', error.response?.data);
       return rejectWithValue(
         error.response?.data?.message || 'Erreur d\'inscription'
       );

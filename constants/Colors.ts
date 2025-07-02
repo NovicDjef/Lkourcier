@@ -11,4 +11,5 @@ export const COLORS = {
   warning: '#FFC107',
   success: '#4CAF50',
   info: '#2196F3',
+  green: '#27ae60',
 };

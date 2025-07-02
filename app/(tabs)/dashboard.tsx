@@ -36,7 +36,6 @@ export default function DashboardScreen() {
   
   // Redux selectors
   const { user, loading, error } = useSelector(state => state.auth);
-  // const user = useSelector(state => state.auth.user);
   const commandesDisponibles = useSelector(state => state.commande.commandes);
   const livraisonState = useSelector(state => state.livraison);
   const { historiqueLivraisons, historiqueLoading, historiqueError } = livraisonState;
@@ -47,8 +46,45 @@ export default function DashboardScreen() {
   const loaderAnim = useRef(new Animated.Value(0)).current;
   const livreurId = user?.id;
 
-
   console.debug("Dashboard livreurId:", livreurId);
+  
+  // Fonction pour déterminer le type de livraison
+  const getDeliveryType = (livraison) => {
+    // Vérifier d'abord le type explicite s'il existe
+    if (livraison.type) {
+      return livraison.type.toLowerCase().includes('colis') ? 'colis' : 'repas';
+    }
+    
+    // Sinon analyser le contenu
+    const restaurant = livraison.commande?.plat?.restaurant?.name || 
+                      livraison.commande?.restaurant?.name ||
+                      livraison.restaurant?.name || '';
+    
+    const platNom = livraison.commande?.plat?.nom || 
+                   livraison.commande?.platNom || 
+                   livraison.platNom || '';
+    
+    const description = livraison.commande?.description || 
+                       livraison.description || '';
+    
+    const allText = (restaurant + ' ' + platNom + ' ' + description).toLowerCase();
+    
+    // Mots-clés pour identifier les colis
+    const colisKeywords = ['colis', 'package', 'livraison express', 'document', 'courrier', 'pli'];
+    const repasKeywords = ['restaurant', 'plat', 'menu', 'food', 'cuisine', 'repas'];
+    
+    if (colisKeywords.some(keyword => allText.includes(keyword))) {
+      return 'colis';
+    }
+    
+    if (repasKeywords.some(keyword => allText.includes(keyword))) {
+      return 'repas';
+    }
+    
+    // Par défaut, considérer comme repas si c'est ambigu
+    return 'repas';
+  };
+
   const loadHistorique = async (targetLivreurId) => {
     console.log(`📜 === DEBUT loadHistorique Dashboard ===`);
     console.log(`📜 livreurId: ${targetLivreurId}, period: ${filterPeriod}`);
@@ -79,6 +115,7 @@ export default function DashboardScreen() {
     
     console.log(`📜 === FIN loadHistorique Dashboard ===`);
   };
+
   useEffect(() => {
     console.log("🔄 useEffect Dashboard déclenché - loadHistorique");
     if (livreurId) {
@@ -117,12 +154,11 @@ export default function DashboardScreen() {
 
     return () => clearTimeout(timer);
   }, []); 
+
   useEffect(() => {
     const checkLoadingComplete = () => {
-      // Vérifier si les données principales sont chargées
       const dataReady = user && !historiqueLoading;
       
-      // Attendre minimum 2 secondes pour éviter un flash trop rapide
       setTimeout(() => {
         if (dataReady || (!loading && user?.id)) {
           setInitialLoading(false);
@@ -130,13 +166,11 @@ export default function DashboardScreen() {
       }, 2000);
     };
 
-    // Démarrer la vérification après un délai initial
     const timer = setTimeout(checkLoadingComplete, 1500);
     
     return () => clearTimeout(timer);
   }, [user, historiqueLoading, loading]);
 
-  // 🔥 NOUVEAU : onRefresh amélioré comme dans HistoriqueScreen
   const onRefresh = React.useCallback(async () => {
     if (!livreurId) {
       console.warn("❌ Pas de livreurId pour refresh");
@@ -146,10 +180,7 @@ export default function DashboardScreen() {
     setRefreshing(true);
     
     try {
-      // Charger l'historique avec la nouvelle méthode
       await loadHistorique(livreurId);
-      
-      // Charger les autres données du dashboard
       await loadDashboardData();
       await livraison.loadPersistedData();
       
@@ -162,43 +193,27 @@ export default function DashboardScreen() {
     }
   }, [livreurId, livraison]);
 
-  // 🔥 AMÉLIORATION : loadDashboardData simplifié
   const loadDashboardData = async () => {
     try {
       const targetLivreurId = user?.id;
       
       if (targetLivreurId) {
         console.log("📊 Chargement données dashboard pour:", targetLivreurId);
-        // Vous pouvez ajouter d'autres appels API ici si nécessaire
-        // await dispatch(fetchLivreurStats(parseInt(targetLivreurId)));
-        // await dispatch(fetchActiveLivraisons(parseInt(targetLivreurId)));
       }
     } catch (error) {
       console.error('❌ Erreur chargement données dashboard:', error);
     }
   };
 
-
-  // 🔥 AMÉLIORATION : Si le chargement initial est en cours, afficher le loader
-// if (initialLoading) {
-//   console.log("🎭 RENDU: Initial Loading Dashboard");
-//   return <InitialLoader />;
-// }
-
-
-  const calculatedStats = 
-  useMemo(() => {
-    console.log('📊 === DÉBUT CALCUL STATS ===');
-    console.log('📊 historiqueLivraisons:', historiqueLivraisons);
-    console.log('📊 Type:', typeof historiqueLivraisons);
-    console.log('📊 Array?', Array.isArray(historiqueLivraisons));
-    console.log('📊 Length:', historiqueLivraisons?.length);
+  const calculatedStats = useMemo(() => {
+ 
   
-    // 🔥 AMÉLIORATION 1: Vérification plus robuste
     if (!historiqueLivraisons || !Array.isArray(historiqueLivraisons) || historiqueLivraisons.length === 0) {
       console.log('📊 Retour des valeurs par défaut');
       return {
         totalLivraisons: 0,
+        totalRepas: 0,
+        totalColis: 0,
         gainsTotal: 0,
         gainsJour: 0,
         gainsSemaine: 0,
@@ -212,6 +227,14 @@ export default function DashboardScreen() {
           labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'], 
           datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }] 
         },
+        dailyRepasDeliveries: { 
+          labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'], 
+          datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }] 
+        },
+        dailyColisDeliveries: { 
+          labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'], 
+          datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }] 
+        },
         deliveryTypes: [
           { name: 'Aucune donnée', count: 1, color: '#E0E0E0', legendFontColor: '#7F7F7F' }
         ]
@@ -222,7 +245,20 @@ export default function DashboardScreen() {
   
     const totalLivraisons = historiqueLivraisons.length;
     
-    // 🔥 AMÉLIORATION 2: Calcul des gains avec gestion d'erreur
+    // Comptage par type de livraison
+    let totalRepas = 0;
+    let totalColis = 0;
+    
+    historiqueLivraisons.forEach(livraison => {
+      const type = getDeliveryType(livraison);
+      if (type === 'repas') {
+        totalRepas++;
+      } else {
+        totalColis++;
+      }
+    });
+    
+    // Calcul des gains
     let gainsTotal = 0;
     try {
       gainsTotal = historiqueLivraisons.reduce((total, livraison, index) => {
@@ -230,7 +266,6 @@ export default function DashboardScreen() {
           const prixCommande = parseFloat(livraison.commande?.prix || livraison.prix || 0);
           const gain = prixCommande * 0.1;
           
-          // Debug pour le premier élément
           if (index === 0) {
             console.log('📊 Premier élément structure:', {
               livraison: livraison,
@@ -251,12 +286,11 @@ export default function DashboardScreen() {
       gainsTotal = 0;
     }
   
-    // 🔥 AMÉLIORATION 3: Calcul des gains du jour avec gestion d'erreur
+    // Calcul des gains du jour
     let gainsJour = 0;
     try {
       const aujourdhui = new Date();
       const aujourdhuiStr = aujourdhui.toDateString();
-      console.log('📊 Date du jour:', aujourdhuiStr);
       
       gainsJour = historiqueLivraisons
         .filter(livraison => {
@@ -288,7 +322,7 @@ export default function DashboardScreen() {
       gainsJour = 0;
     }
   
-    // 🔥 AMÉLIORATION 4: Calcul des gains de la semaine avec gestion d'erreur
+    // Calcul des gains de la semaine
     let gainsSemaine = 0;
     try {
       const uneSemaineEnArriere = new Date();
@@ -319,7 +353,7 @@ export default function DashboardScreen() {
       gainsSemaine = 0;
     }
   
-    // 🔥 AMÉLIORATION 5: Calcul du temps moyen avec gestion d'erreur
+    // Calcul du temps moyen
     let moyenneTemps = 0;
     try {
       const livraisonsCompletes = historiqueLivraisons.filter(l => 
@@ -333,11 +367,11 @@ export default function DashboardScreen() {
           try {
             const debut = new Date(livraison.created_at || livraison.createdAt);
             const fin = new Date(livraison.updated_at || livraison.updatedAt || livraison.created_at);
-            const duree = (fin - debut) / (1000 * 60); // en minutes
-            return total + (duree > 0 ? duree : 30); // Fallback 30 min si invalide
+            const duree = (fin - debut) / (1000 * 60);
+            return total + (duree > 0 ? duree : 30);
           } catch (error) {
             console.error('❌ Erreur calcul temps pour livraison:', livraison);
-            return total + 30; // Fallback 30 minutes
+            return total + 30;
           }
         }, 0);
         
@@ -348,7 +382,7 @@ export default function DashboardScreen() {
       moyenneTemps = 0;
     }
   
-    // 🔥 AMÉLIORATION 6: Taux de succès avec gestion d'erreur
+    // Taux de succès
     let tauxSucces = 0;
     try {
       const livraisonsReussies = historiqueLivraisons.filter(l => 
@@ -361,12 +395,14 @@ export default function DashboardScreen() {
       tauxSucces = 0;
     }
   
-    // 🔥 AMÉLIORATION 7: Données graphiques avec gestion d'erreur
-    let dailyEarnings, weeklyDeliveries;
+    // Données graphiques améliorées par jour
+    let dailyEarnings, weeklyDeliveries, dailyRepasDeliveries, dailyColisDeliveries;
     try {
       const derniersSeptJours = [];
       const gainsParJour = [];
       const livraisonsParJour = [];
+      const repasParJour = [];
+      const colisParJour = [];
       
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
@@ -376,43 +412,49 @@ export default function DashboardScreen() {
         const joursLabels = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
         derniersSeptJours.push(joursLabels[date.getDay()]);
         
-        // Gains du jour
-        const gainsJour = historiqueLivraisons
-          .filter(livraison => {
-            try {
-              return new Date(livraison.created_at || livraison.createdAt).toDateString() === dateStr;
-            } catch {
-              return false;
-            }
-          })
-          .reduce((total, livraison) => {
-            try {
-              const prixCommande = parseFloat(livraison.commande?.prix || livraison.prix || 0);
-              return total + (prixCommande * 0.1);
-            } catch {
-              return total;
-            }
-          }, 0);
+        // Filtrer les livraisons du jour
+        const livraisonsJour = historiqueLivraisons.filter(livraison => {
+          try {
+            return new Date(livraison.created_at || livraison.createdAt).toDateString() === dateStr;
+          } catch {
+            return false;
+          }
+        });
         
-        // Nombre de livraisons du jour
-        const livraisonsJour = historiqueLivraisons
-          .filter(livraison => {
-            try {
-              return new Date(livraison.created_at || livraison.createdAt).toDateString() === dateStr;
-            } catch {
-              return false;
-            }
-          }).length;
+        // Gains du jour
+        const gainsJour = livraisonsJour.reduce((total, livraison) => {
+          try {
+            const prixCommande = parseFloat(livraison.commande?.prix || livraison.prix || 0);
+            return total + (prixCommande * 0.1);
+          } catch {
+            return total;
+          }
+        }, 0);
+        
+        // Comptage par type
+        let repasCount = 0;
+        let colisCount = 0;
+        
+        livraisonsJour.forEach(livraison => {
+          const type = getDeliveryType(livraison);
+          if (type === 'repas') {
+            repasCount++;
+          } else {
+            colisCount++;
+          }
+        });
         
         gainsParJour.push(Math.round(gainsJour));
-        livraisonsParJour.push(livraisonsJour);
+        livraisonsParJour.push(livraisonsJour.length);
+        repasParJour.push(repasCount);
+        colisParJour.push(colisCount);
       }
   
       dailyEarnings = {
         labels: derniersSeptJours,
         datasets: [{
           data: gainsParJour.length > 0 ? gainsParJour : [0, 0, 0, 0, 0, 0, 0],
-          color: (opacity = 1) => `rgba(81, 150, 244, ${opacity})`,
+          color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
           strokeWidth: 3
         }]
       };
@@ -423,8 +465,21 @@ export default function DashboardScreen() {
           data: livraisonsParJour.length > 0 ? livraisonsParJour : [0, 0, 0, 0, 0, 0, 0]
         }]
       };
+      
+      dailyRepasDeliveries = {
+        labels: derniersSeptJours,
+        datasets: [{
+          data: repasParJour.length > 0 ? repasParJour : [0, 0, 0, 0, 0, 0, 0]
+        }]
+      };
+      
+      dailyColisDeliveries = {
+        labels: derniersSeptJours,
+        datasets: [{
+          data: colisParJour.length > 0 ? colisParJour : [0, 0, 0, 0, 0, 0, 0]
+        }]
+      };
     } catch (error) {
-      console.error('❌ Erreur calcul données graphiques:', error);
       dailyEarnings = { 
         labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'], 
         datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }] 
@@ -433,55 +488,52 @@ export default function DashboardScreen() {
         labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'], 
         datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }] 
       };
+      dailyRepasDeliveries = { 
+        labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'], 
+        datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }] 
+      };
+      dailyColisDeliveries = { 
+        labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'], 
+        datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }] 
+      };
     }
   
-    // 🔥 AMÉLIORATION 8: Types de livraisons avec gestion d'erreur
+    // Types de livraisons améliorés
     let deliveryTypes = [];
     try {
-      const typesLivraisons = {};
+      const typesCount = {
+        'Livraisons de repas': totalRepas,
+        'Livraisons de colis': totalColis
+      };
       
-      historiqueLivraisons.forEach((livraison, index) => {
-        try {
-          const restaurant = livraison.commande?.plat?.restaurant?.name || 
-                            livraison.commande?.restaurant?.name ||
-                            livraison.restaurant?.name ||
-                            'Autres';
-          
-          const type = restaurant.toLowerCase().includes('pharmacie') ? 'Pharmacie' :
-                       restaurant.toLowerCase().includes('épicerie') ? 'Épicerie' :
-                       restaurant.toLowerCase().includes('supermarché') ? 'Épicerie' :
-                       'Restaurant';
-          
-          typesLivraisons[type] = (typesLivraisons[type] || 0) + 1;
-        } catch (error) {
-          console.error('❌ Erreur traitement type livraison', index, ':', error);
-        }
-      });
-  
-      deliveryTypes = Object.entries(typesLivraisons).map(([type, count], index) => {
-        const colors = ['#5196F4', '#FF6B6B', '#4ECDC4', '#FFE66D', '#9C27B0'];
-        return {
-          name: type,
-          count,
-          color: colors[index % colors.length],
-          legendFontColor: '#7F7F7F'
-        };
-      });
+      deliveryTypes = Object.entries(typesCount)
+        .filter(([type, count]) => count > 0)
+        .map(([type, count], index) => {
+          const colors = [COLORS.info, COLORS.error, COLORS.warning, COLORS.primary];
+          return {
+            name: type,
+            count,
+            color: colors[index % colors.length],
+            legendFontColor: '#34495e'
+          };
+        });
   
       if (deliveryTypes.length === 0) {
         deliveryTypes = [
-          { name: 'Aucune donnée', count: 1, color: '#E0E0E0', legendFontColor: '#7F7F7F' }
+          { name: 'Aucune donnée', count: 1, color: '#bdc3c7', legendFontColor: '#7f8c8d' }
         ];
       }
     } catch (error) {
       console.error('❌ Erreur calcul types livraisons:', error);
       deliveryTypes = [
-        { name: 'Aucune donnée', count: 1, color: '#E0E0E0', legendFontColor: '#7F7F7F' }
+        { name: 'Aucune donnée', count: 1, color: '#bdc3c7', legendFontColor: '#7f8c8d' }
       ];
     }
   
     const result = {
       totalLivraisons,
+      totalRepas,
+      totalColis,
       gainsTotal: Math.round(gainsTotal),
       gainsJour: Math.round(gainsJour),
       gainsSemaine: Math.round(gainsSemaine),
@@ -489,25 +541,24 @@ export default function DashboardScreen() {
       tauxSucces: `${tauxSucces}%`,
       dailyEarnings,
       weeklyDeliveries,
+      dailyRepasDeliveries,
+      dailyColisDeliveries,
       deliveryTypes
     };
   
-    console.log('📊 === RÉSULTATS FINAUX ===');
-    console.log('📊 Total livraisons:', result.totalLivraisons);
-    console.log('📊 Gains total:', result.gainsTotal);
-    console.log('📊 Gains jour:', result.gainsJour);
-    console.log('📊 Gains semaine:', result.gainsSemaine);
-    console.log('📊 === FIN CALCUL STATS ===');
-  
     return result;
   }, [historiqueLivraisons]);
-  
-  
 
   useEffect(() => {
     if (user && user.disponible !== undefined) {
-      console.log('📱 Synchronisation statut utilisateur:', user.disponible);
+      console.warn('📱 Synchronisation statut utilisateur:', user.disponible);
       setIsOnline(user.disponible);
+
+      Animated.timing(fadeAnim, {
+        toValue: user.disponible ? 0 : 1, // 0 quand en ligne (cacher l'alerte), 1 quand hors ligne (montrer l'alerte)
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     }
   }, [user?.disponible]);
 
@@ -520,9 +571,7 @@ export default function DashboardScreen() {
           toValue: newOnlineStatus ? 0 : 1,
           duration: 300,
           useNativeDriver: true,
-        }).start(() => {
-          //setIsOnline(newOnlineStatus);
-        });
+        }).start();
       }
     }
   }, [user?.disponible, isOnline]);
@@ -539,7 +588,6 @@ export default function DashboardScreen() {
     console.log("commandesDisponibles :", commandesDisponibles);
   }, []);
 
-
   const initializeDashboard = async () => {
     try {
       console.log('📱 Dashboard initialisé');
@@ -547,21 +595,6 @@ export default function DashboardScreen() {
       console.error('❌ Erreur initialisation dashboard:', error);
     }
   };
-
-  // const loadDashboardData = async () => {
-  //   try {
-  //     const livreurId = await AsyncStorage.getItem('livreurId') || user?.id;
-      
-  //     if (livreurId) {
-  //       await Promise.all([
-  //         // dispatch(fetchLivreurStats(parseInt(livreurId))),
-  //         //dispatch(fetchActiveLivraisons(parseInt(livreurId)))
-  //       ]);
-  //     }
-  //   } catch (error) {
-  //     console.error('❌ Erreur chargement données:', error);
-  //   }
-  // };
 
   const checkNotificationPermissions = async () => {
     try {
@@ -597,38 +630,44 @@ export default function DashboardScreen() {
       console.log('🔄 Changement statut:', { livreurId, newStatus });
       setIsOnline(newStatus);
 
-      const result = await dispatch(updateLivreurStatus({
-        livreurId: parseInt(livreurId),
-        disponible: newStatus
-      }));
+          // Animation de l'alerte
+    Animated.timing(fadeAnim, {
+      toValue: newStatus ? 0 : 1, // 0 quand en ligne, 1 quand hors ligne
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+ 
+      // const result = await dispatch(updateLivreurStatus({
+      //   livreurId: parseInt(livreurId),
+      //   disponible: newStatus
+      // }));
 
-      if (updateLivreurStatus.fulfilled.match(result)) {
-        console.log('✅ Statut mis à jour avec succès');
+      // if (updateLivreurStatus.fulfilled.match(result)) {
+      //   console.log('✅ Statut mis à jour avec succès');
         
-        if (newStatus) {
-          await handleRegisterPushToken();
-        }
+      //   if (newStatus) {
+      //     await handleRegisterPushToken();
+      //   }
 
-        Alert.alert(
-          'Statut mis à jour',
-          `Vous êtes maintenant ${newStatus ? 'en ligne' : 'hors ligne'}${newStatus ? ' et prêt à recevoir des commandes' : ''}`
-        );
+      //   Alert.alert(
+      //     'Statut mis à jour',
+      //     `Vous êtes maintenant ${newStatus ? 'en ligne' : 'hors ligne'}${newStatus ? ' et prêt à recevoir des commandes' : ''}`
+      //   );
 
-        if (newStatus) {
-          loadDashboardData();
-        }
-      } else {
-        console.error('❌ Erreur mise à jour:', result.payload);
-        setIsOnline(!newStatus);
-        Alert.alert('Erreur', result.payload || 'Impossible de mettre à jour votre statut');
-      }
+      //   if (newStatus) {
+      //     loadDashboardData();
+      //   }
+      // } else {
+      //   console.error('❌ Erreur mise à jour:', result.payload);
+      //   setIsOnline(!newStatus);
+      //   Alert.alert('Erreur', result.payload || 'Impossible de mettre à jour votre statut');
+      // }
     } catch (error) {
       console.error('❌ Erreur changement statut:', error);
       setIsOnline(!newStatus);
       Alert.alert('Erreur', 'Impossible de mettre à jour votre statut');
     }
   };
-  
 
   const requestNotificationPermissions = async () => {
     try {
@@ -671,18 +710,6 @@ export default function DashboardScreen() {
       router.push(`/livraison/${livraison.currentLivraison.id}`);
     }
   };
-
-  // const onRefresh = React.useCallback(async () => {
-  //   setRefreshing(true);
-  //   try {
-  //     await loadDashboardData();
-  //     await livraison.loadPersistedData();
-  //   } catch (error) {
-  //     console.error('❌ Erreur refresh:', error);
-  //   } finally {
-  //     setRefreshing(false);
-  //   }
-  // }, []);
 
   const testNotification = async () => {
     try {
@@ -735,7 +762,6 @@ export default function DashboardScreen() {
       }).start();
     };
 
-    // Valeurs par défaut pour éviter les erreurs
     const safeValue = value !== undefined && value !== null ? value : '0';
     const safeLabel = label || 'Label';
     const safeTrend = trend !== undefined && trend !== null ? trend : 0;
@@ -757,9 +783,9 @@ export default function DashboardScreen() {
               <Ionicons 
                 name={safeTrend > 0 ? 'trending-up' : 'trending-down'} 
                 size={12} 
-                color={safeTrend > 0 ? COLORS.success : COLORS.error} 
+                color={safeTrend > 0 ? COLORS.primary : COLORS.error} 
               />
-              <Text style={[styles.trendText, { color: safeTrend > 0 ? COLORS.success : COLORS.error }]}>
+              <Text style={[styles.trendText, { color: safeTrend > 0 ? COLORS.primary : COLORS.error }]}>
                 {Math.abs(safeTrend)}%
               </Text>
             </View>
@@ -773,17 +799,17 @@ export default function DashboardScreen() {
     backgroundGradientFrom: '#ffffff',
     backgroundGradientTo: '#ffffff',
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(81, 150, 244, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity * 0.6})`,
+    color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(52, 73, 94, ${opacity * 0.8})`,
     style: { borderRadius: 16 },
     propsForDots: {
       r: '4',
       strokeWidth: '2',
-      stroke: '#5196F4'
+      stroke: COLORS.info
     },
     propsForBackgroundLines: {
       strokeDasharray: '',
-      stroke: '#f0f0f0',
+      stroke: '#ecf0f1',
       strokeWidth: 1
     },
     propsForLabels: {
@@ -793,25 +819,37 @@ export default function DashboardScreen() {
 
   const barChartConfig = {
     ...chartConfig,
-    fillShadowGradient: '#5196F4',
+    fillShadowGradient: COLORS.info,
     fillShadowGradientOpacity: 0.8,
   };
 
-  
+  const repasChartConfig = {
+    ...chartConfig,
+    color: (opacity = 1) => `rgba(231, 76, 60, ${opacity})`,
+    fillShadowGradient: COLORS.error,
+    fillShadowGradientOpacity: 0.8,
+  };
+
+  const colisChartConfig = {
+    ...chartConfig,
+    color: (opacity = 1) => `rgba(243, 156, 18, ${opacity})`,
+    fillShadowGradient: COLORS.warning,
+    fillShadowGradientOpacity: 0.8,
+  };
 
   return (
     <View style={styles.container}>
       <NotificationHandler />
 
-      {/* Header avec dégradé */}
-      <View style={styles.modernHeader}>
+      {/* Header classique et élégant */}
+      <View style={styles.classicHeader}>
         <View style={styles.headerContent}>
           <View style={styles.profileSection}>
             <Image
               source={{ 
                 uri: user?.image || 'https://via.placeholder.com/60' 
               }}
-              style={styles.modernProfileImage}
+              style={styles.classicProfileImage}
             />
             <View style={styles.headerText}>
               <Text style={styles.welcomeText}>Bonjour,</Text>
@@ -819,7 +857,7 @@ export default function DashboardScreen() {
                 {user ? `${user.prenom} ${user.username || ''}` : 'Livreur'}
               </Text>
               <View style={styles.ratingContainer}>
-                <Ionicons name="star" size={14} color="#FFD700" />
+                <Ionicons name="star" size={14} color={COLORS.warning} />
                 <Text style={styles.ratingText}>
                   {livraison.stats?.note || '0.0'}
                 </Text>
@@ -827,19 +865,19 @@ export default function DashboardScreen() {
             </View>
           </View>
           
-          {/* Toggle statut moderne */}
-          <View style={styles.modernStatusContainer}>
-            <View style={[styles.statusIndicator, { backgroundColor: isOnline ? COLORS.success : COLORS.gray }]} />
-            <Text style={[styles.statusText, { color: isOnline ? COLORS.success : COLORS.gray }]}>
+          {/* Toggle statut élégant */}
+          <View style={styles.classicStatusContainer}>
+            <View style={[styles.statusIndicator, { backgroundColor: isOnline ? COLORS.primary : '#95a5a6' }]} />
+            <Text style={[styles.statusText, { color: isOnline ? COLORS.primary : '#95a5a6' }]}>
               {isOnline ? 'En ligne' : 'Hors ligne'}
             </Text>
             <Switch
               value={isOnline}
               onValueChange={toggleOnlineStatus}
-              trackColor={{ false: '#E0E0E0', true: COLORS.success + '40' }}
-              thumbColor={isOnline ? COLORS.success : '#f4f3f4'}
+              trackColor={{ false: '#ecf0f1', true: COLORS.primary + '40' }}
+              thumbColor={isOnline ? COLORS.primary : '#95a5a6'}
               disabled={loading}
-              style={styles.modernSwitch}
+              style={styles.classicSwitch}
             />
           </View>
         </View>
@@ -866,13 +904,13 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Livraison en cours avec animation */}
+        {/* Livraison en cours */}
         {livraison.currentLivraison && (
-          <Animated.View style={[styles.modernDeliveryCard, { transform: [{ scale: scaleAnim }] }]}>
+          <Animated.View style={[styles.classicDeliveryCard, { transform: [{ scale: scaleAnim }] }]}>
             <TouchableOpacity onPress={goToCurrentLivraison} style={styles.deliveryCardContent}>
               <View style={styles.deliveryHeader}>
                 <View style={styles.deliveryIconContainer}>
-                  <Ionicons name="bicycle" size={24} color={COLORS.white} />
+                  <Ionicons name="bicycle" size={24} color="#ffffff" />
                 </View>
                 <View style={styles.deliveryInfo}>
                   <Text style={styles.deliveryTitle}>🚚 Livraison en cours</Text>
@@ -880,7 +918,7 @@ export default function DashboardScreen() {
                     {livraison.currentLivraison.commande?.plat?.restaurant?.name || 'Restaurant'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.primary} />
+                <Ionicons name="chevron-forward" size={20} color={COLORS.info} />
               </View>
               <View style={styles.deliveryProgress}>
                 <View style={styles.progressBar}>
@@ -894,7 +932,7 @@ export default function DashboardScreen() {
 
         {/* Alerte hors ligne */}
         {!isOnline && (
-          <Animated.View style={[styles.modernOfflineAlert, { opacity: fadeAnim }]}>
+          <Animated.View style={[styles.classicOfflineAlert, { opacity: fadeAnim }]}>
             <Ionicons name="wifi-outline" size={24} color={COLORS.warning} />
             <View style={styles.alertContent}>
               <Text style={styles.alertTitle}>Vous êtes hors ligne</Text>
@@ -903,42 +941,28 @@ export default function DashboardScreen() {
           </Animated.View>
         )}
 
-        {/* Statistiques modernes */}
-        <Animated.View style={[styles.modernStatsContainer, { transform: [{ scale: scaleAnim }] }]}>
+        {/* Statistiques avec types de livraisons */}
+        <Animated.View style={[styles.classicStatsContainer, { transform: [{ scale: scaleAnim }] }]}>
           <StatCard
-            icon="trophy"
-            value={calculatedStats.totalLivraisons || 0}
-            label="Livraisons totales"
-            color="#FFB347"
-            trend={calculatedStats.totalLivraisons > 0 ? 12 : 0}
+            icon="restaurant"
+            value={calculatedStats.totalRepas || 0}
+            label="Livraisons repas"
+            color={COLORS.error}
+            trend={calculatedStats.totalRepas > 0 ? 8 : 0}
           />
           <StatCard
-            icon="cash"
-            value={`${calculatedStats.gainsJour || 0} F`}
-            label="Gains aujourd'hui"
-            color="#4CAF50"
-            trend={calculatedStats.gainsJour > 0 ? 8 : 0}
+            icon="cube"
+            value={calculatedStats.totalColis || 0}
+            label="Livraisons colis"
+            color="#9b59b6"
+            trend={calculatedStats.totalColis > 0 ? 5 : 0}
           />
-          {/* <StatCard
-            icon="time"
-            value={calculatedStats.moyenneTemps || '0 min'}
-            label="Temps moyen"
-            color="#2196F3"
-            trend={-5}
-          />
-          <StatCard
-            icon="checkmark-circle"
-            value={calculatedStats.tauxSucces || '0%'}
-            label="Taux succès"
-            color="#9C27B0"
-            trend={2}
-          /> */}
         </Animated.View>
 
-        {/* Affichage des gains totaux */}
-        <View style={styles.totalEarningsCard}>
+        {/* Résumé des gains */}
+        <View style={styles.classicEarningsCard}>
           <View style={styles.earningsHeader}>
-            <Ionicons name="wallet" size={24} color={COLORS.success} />
+            <Ionicons name="wallet" size={24} color={COLORS.primary} />
             <Text style={styles.earningsTitle}>Résumé des gains</Text>
           </View>
           <View style={styles.earningsGrid}>
@@ -958,62 +982,62 @@ export default function DashboardScreen() {
           <Text style={styles.commissionNote}>* Commission de 10% par livraison</Text>
         </View>
 
-          {/* Actions rapides modernes */}
-          <View style={styles.modernQuickActions}>
+        {/* Actions rapides */}
+        <View style={styles.classicQuickActions}>
           <Text style={styles.sectionTitle}>Actions rapides</Text>
           
           <View style={styles.actionsGrid}>
             <TouchableOpacity
-              style={[styles.modernActionCard, { backgroundColor: COLORS.primary + '15' }]}
+              style={[styles.classicActionCard, { backgroundColor: COLORS.info + '15' }]}
               onPress={() => router.push('/(tabs)/livraisons')}
             >
-              <View style={[styles.actionIconContainer, { backgroundColor: COLORS.primary }]}>
-                <Ionicons name="list" size={20} color={COLORS.white} />
+              <View style={[styles.actionIconContainer, { backgroundColor: COLORS.info }]}>
+                <Ionicons name="list" size={20} color="#ffffff" />
               </View>
-              <Text style={styles.modernActionText}>Mes livraisons</Text>
+              <Text style={styles.classicActionText}>Mes livraisons</Text>
               {commandesDisponibles.length > 0 && (
-                <View style={styles.modernBadge}>
+                <View style={styles.classicBadge}>
                   <Text style={styles.badgeText}>{commandesDisponibles.length}</Text>
                 </View>
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.modernActionCard, { backgroundColor: COLORS.secondary + '15' }]}
+            {/* <TouchableOpacity
+              style={[styles.classicActionCard, { backgroundColor: COLORS.error + '15' }]}
               onPress={() => router.push('/(tabs)/historique')}
             >
-              <View style={[styles.actionIconContainer, { backgroundColor: COLORS.secondary }]}>
-                <Ionicons name="time" size={20} color={COLORS.white} />
+              <View style={[styles.actionIconContainer, { backgroundColor: COLORS.error }]}>
+                <Ionicons name="time" size={20} color="#ffffff" />
               </View>
-              <Text style={styles.modernActionText}>Historique</Text>
-            </TouchableOpacity>
+              <Text style={styles.classicActionText}>Historique</Text>
+            </TouchableOpacity> */}
 
-            <TouchableOpacity
-              style={[styles.modernActionCard, { backgroundColor: COLORS.warning + '15' }]}
+            {/* <TouchableOpacity
+              style={[styles.classicActionCard, { backgroundColor: COLORS.warning + '15' }]}
               onPress={testNotification}
             >
               <View style={[styles.actionIconContainer, { backgroundColor: COLORS.warning }]}>
-                <Ionicons name="notifications" size={20} color={COLORS.white} />
+                <Ionicons name="notifications" size={20} color="#ffffff" />
               </View>
-              <Text style={styles.modernActionText}>Test notification</Text>
-            </TouchableOpacity>
+              <Text style={styles.classicActionText}>Test notification</Text>
+            </TouchableOpacity> */}
 
             <TouchableOpacity
-              style={[styles.modernActionCard, { backgroundColor: COLORS.success + '15' }]}
-              onPress={() => router.push('/(tabs)/earnings')}
+              style={[styles.classicActionCard, { backgroundColor: COLORS.primary + '15' }]}
+              onPress={() => router.push('../../components/revenu/EarningsScreen')}
             >
-              <View style={[styles.actionIconContainer, { backgroundColor: COLORS.success }]}>
-                <Ionicons name="analytics" size={20} color={COLORS.white} />
+              <View style={[styles.actionIconContainer, { backgroundColor: COLORS.primary }]}>
+                <Ionicons name="analytics" size={20} color="#ffffff" />
               </View>
-              <Text style={styles.modernActionText}>Revenus</Text>
+              <Text style={styles.classicActionText}>Revenus</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Section Graphiques */}
+        {/* Section Graphiques améliorée */}
         <View style={styles.chartsSection}>
           {/* Graphique des gains journaliers */}
-          <View style={styles.chartCard}>
+          <View style={styles.classicChartCard}>
             <View style={styles.chartHeader}>
               <Text style={styles.chartTitle}>💰 Gains de la semaine</Text>
               <TouchableOpacity>
@@ -1042,13 +1066,13 @@ export default function DashboardScreen() {
             )}
           </View>
 
-          {/* Graphique des livraisons */}
-          <View style={styles.chartCard}>
+          {/* Graphiques séparés pour repas et colis */}
+          <View style={styles.classicChartCard}>
             <View style={styles.chartHeader}>
-              <Text style={styles.chartTitle}>📦 Livraisons hebdomadaires</Text>
+              <Text style={styles.chartTitle}>🍽️ Livraisons de repas par jour</Text>
               <TouchableOpacity>
                 <Text style={styles.totalDeliveries}>
-                  Total: {calculatedStats.totalLivraisons || 0}
+                  Total: {calculatedStats.totalRepas || 0}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1058,10 +1082,36 @@ export default function DashboardScreen() {
               </View>
             ) : (
               <BarChart
-                data={calculatedStats.weeklyDeliveries}
+                data={calculatedStats.dailyRepasDeliveries}
                 width={screenWidth - 60}
                 height={200}
-                chartConfig={barChartConfig}
+                chartConfig={repasChartConfig}
+                style={styles.chart}
+                showValuesOnTopOfBars={true}
+                withInnerLines={false}
+              />
+            )}
+          </View>
+
+          <View style={styles.classicChartCard}>
+            <View style={styles.chartHeader}>
+              <Text style={styles.chartTitle}>📦 Livraisons de colis par jour</Text>
+              <TouchableOpacity>
+                <Text style={styles.totalDeliveries}>
+                  Total: {calculatedStats.totalColis || 0}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {historiqueLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Chargement des données...</Text>
+              </View>
+            ) : (
+              <BarChart
+                data={calculatedStats.dailyColisDeliveries}
+                width={screenWidth - 60}
+                height={200}
+                chartConfig={colisChartConfig}
                 style={styles.chart}
                 showValuesOnTopOfBars={true}
                 withInnerLines={false}
@@ -1070,11 +1120,11 @@ export default function DashboardScreen() {
           </View>
 
           {/* Graphique circulaire des types de livraisons */}
-          <View style={styles.chartCard}>
+          <View style={styles.classicChartCard}>
             <View style={styles.chartHeader}>
-              <Text style={styles.chartTitle}>🏪 Types de livraisons</Text>
+              <Text style={styles.chartTitle}>📊 Répartition des livraisons</Text>
               <TouchableOpacity>
-                <Ionicons name="pie-chart" size={20} color={COLORS.primary} />
+                <Ionicons name="pie-chart" size={20} color={COLORS.info} />
               </TouchableOpacity>
             </View>
             {historiqueLoading ? (
@@ -1094,7 +1144,7 @@ export default function DashboardScreen() {
               />
             ) : (
               <View style={styles.noDataContainer}>
-                <Ionicons name="analytics-outline" size={48} color={COLORS.gray} />
+                <Ionicons name="analytics-outline" size={48} color="#95a5a6" />
                 <Text style={styles.noDataText}>Aucune livraison pour le moment</Text>
                 <Text style={styles.noDataSubtext}>Commencez à livrer pour voir vos statistiques</Text>
               </View>
@@ -1102,18 +1152,16 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-      
-
-        {/* État du système moderne */}
-        <View style={styles.systemStatus}>
+        {/* État du système */}
+        {/* <View style={styles.systemStatus}>
           <Text style={styles.sectionTitle}>État du système</Text>
-          <View style={styles.modernDebugCard}>
+          <View style={styles.classicDebugCard}>
             <View style={styles.statusItem}>
               <View style={styles.statusItemLeft}>
-                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                <Ionicons name="checkmark-circle" size={20} color="#27ae60" />
                 <Text style={styles.statusLabel}>Redux connecté</Text>
               </View>
-              <Text style={[styles.statusValue, { color: COLORS.success }]}>✅ Actif</Text>
+              <Text style={[styles.statusValue, { color: '#27ae60' }]}>✅ Actif</Text>
             </View>
 
             <View style={styles.statusItem}>
@@ -1121,11 +1169,11 @@ export default function DashboardScreen() {
                 <Ionicons 
                   name={notificationsEnabled ? "notifications" : "notifications-off"} 
                   size={20} 
-                  color={notificationsEnabled ? COLORS.success : COLORS.error} 
+                  color={notificationsEnabled ? '#27ae60' : '#e74c3c'} 
                 />
                 <Text style={styles.statusLabel}>Notifications</Text>
               </View>
-              <Text style={[styles.statusValue, { color: notificationsEnabled ? COLORS.success : COLORS.error }]}>
+              <Text style={[styles.statusValue, { color: notificationsEnabled ? '#27ae60' : '#e74c3c' }]}>
                 {notificationsEnabled ? '✅ Activées' : '❌ Désactivées'}
               </Text>
             </View>
@@ -1135,11 +1183,11 @@ export default function DashboardScreen() {
                 <Ionicons 
                   name={livraison.pushTokenRegistered ? "shield-checkmark" : "shield"} 
                   size={20} 
-                  color={livraison.pushTokenRegistered ? COLORS.success : COLORS.warning} 
+                  color={livraison.pushTokenRegistered ? '#27ae60' : '#f39c12'} 
                 />
                 <Text style={styles.statusLabel}>Token push</Text>
               </View>
-              <Text style={[styles.statusValue, { color: livraison.pushTokenRegistered ? COLORS.success : COLORS.warning }]}>
+              <Text style={[styles.statusValue, { color: livraison.pushTokenRegistered ? '#27ae60' : '#f39c12' }]}>
                 {livraison.pushTokenRegistered ? '✅ Enregistré' : '⚠️ En attente'}
               </Text>
             </View>
@@ -1149,26 +1197,25 @@ export default function DashboardScreen() {
                 <Ionicons 
                   name={historiqueLoading ? "hourglass" : "server"} 
                   size={20} 
-                  color={historiqueLoading ? COLORS.warning : COLORS.success} 
+                  color={historiqueLoading ? '#f39c12' : '#27ae60'} 
                 />
                 <Text style={styles.statusLabel}>Historique des livraisons</Text>
               </View>
-              <Text style={[styles.statusValue, { color: historiqueLoading ? COLORS.warning : COLORS.success }]}>
+              <Text style={[styles.statusValue, { color: historiqueLoading ? '#f39c12' : '#27ae60' }]}>
                 {historiqueLoading ? '⏳ Chargement...' : `✅ ${historiqueLivraisons?.length || 0} livraisons`}
               </Text>
             </View>
 
             <View style={styles.statusItem}>
               <View style={styles.statusItemLeft}>
-                <Ionicons name="server" size={20} color={COLORS.success} />
+                <Ionicons name="server" size={20} color="#27ae60" />
                 <Text style={styles.statusLabel}>Serveur</Text>
               </View>
-              <Text style={[styles.statusValue, { color: COLORS.success }]}>✅ En ligne</Text>
+              <Text style={[styles.statusValue, { color: '#27ae60' }]}>✅ En ligne</Text>
             </View>
           </View>
-        </View>
+        </View> */}
 
-        {/* Espacement pour le bas */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </View>
@@ -1178,21 +1225,22 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#f8f9fa',
   },
-  modernHeader: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    backgroundColor: COLORS.primary,
+  
+  // Nouveau style de header classique et élégant
+  classicHeader: {
+    backgroundColor: '#ffffff',
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 25,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ecf0f1',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   headerContent: {
     flexDirection: 'row',
@@ -1204,26 +1252,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  modernProfileImage: {
+  classicProfileImage: {
     width: 60,
     height: 60,
     borderRadius: 30,
     marginRight: 15,
-    borderWidth: 3,
-    borderColor: COLORS.white,
+    borderWidth: 2,
+    borderColor: '#ecf0f1',
   },
   headerText: {
     flex: 1,
   },
   welcomeText: {
     fontSize: 14,
-    color: COLORS.white + 'CC',
+    color: '#7f8c8d',
     fontWeight: '500',
   },
   userName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: COLORS.white,
+    fontWeight: '700',
+    color: '#2c3e50',
     marginTop: 2,
   },
   ratingContainer: {
@@ -1233,11 +1281,11 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 14,
-    color: COLORS.white,
+    color: '#34495e',
     marginLeft: 4,
     fontWeight: '600',
   },
-  modernStatusContainer: {
+  classicStatusContainer: {
     alignItems: 'center',
   },
   statusIndicator: {
@@ -1248,27 +1296,30 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 8,
-    color: COLORS.white,
   },
-  modernSwitch: {
+  classicSwitch: {
     transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
   },
+  
   content: {
     flex: 1,
     padding: 20,
   },
-  modernDeliveryCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
+  
+  // Cards avec style classique
+  classicDeliveryCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
     marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    overflow: 'hidden',
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
   },
   deliveryCardContent: {
     padding: 20,
@@ -1282,7 +1333,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.info,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -1292,12 +1343,12 @@ const styles = StyleSheet.create({
   },
   deliveryTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+    fontWeight: '700',
+    color: '#2c3e50',
   },
   deliverySubtitle: {
     fontSize: 14,
-    color: COLORS.gray,
+    color: '#7f8c8d',
     marginTop: 2,
   },
   deliveryProgress: {
@@ -1305,30 +1356,33 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#E0E7FF',
+    backgroundColor: '#ecf0f1',
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.info,
     borderRadius: 2,
   },
   progressText: {
     fontSize: 12,
-    color: COLORS.gray,
+    color: '#7f8c8d',
     marginTop: 8,
     textAlign: 'center',
   },
-  modernOfflineAlert: {
+  
+  classicOfflineAlert: {
     flexDirection: 'row',
-    backgroundColor: COLORS.warning + '15',
-    borderRadius: 15,
+    backgroundColor: '#fff3cd',
+    borderRadius: 12,
     padding: 20,
     marginBottom: 20,
     alignItems: 'center',
     borderLeftWidth: 4,
     borderLeftColor: COLORS.warning,
+    borderWidth: 1,
+    borderColor: '#ffeaa7',
   },
   alertContent: {
     marginLeft: 15,
@@ -1336,23 +1390,24 @@ const styles = StyleSheet.create({
   },
   alertTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.warning,
+    fontWeight: '700',
+    color: '#856404',
   },
   alertText: {
     fontSize: 14,
-    color: COLORS.dark,
+    color: '#6c757d',
     marginTop: 2,
   },
-  modernStatsContainer: {
+  
+  classicStatsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 25,
+    marginBottom: 10,
   },
   modernStatCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
     padding: 16,
     width: (screenWidth - 60) / 2,
     marginBottom: 15,
@@ -1361,6 +1416,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
   },
   statIconContainer: {
     width: 40,
@@ -1372,13 +1429,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: COLORS.dark,
+    fontWeight: '700',
+    color: '#2c3e50',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: COLORS.gray,
+    color: '#7f8c8d',
     fontWeight: '500',
   },
   trendContainer: {
@@ -1391,138 +1448,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
   },
-  chartsSection: {
-    marginBottom: 25,
-  },
-  chartCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
+  
+  classicEarningsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
     padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  chartTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.dark,
-  },
-  chart: {
-    borderRadius: 16,
-    marginLeft: -15,
-  },
-  modernQuickActions: {
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.dark,
-    marginBottom: 15,
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  modernActionCard: {
-    width: (screenWidth - 55) / 2,
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-    position: 'relative',
-  },
-  actionIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  modernActionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.dark,
-    textAlign: 'center',
-  },
-  modernBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: COLORS.error,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: COLORS.white,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  systemStatus: {
-    marginBottom: 25,
-  },
-  modernDebugCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  statusItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  statusItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusLabel: {
-    fontSize: 14,
-    color: COLORS.dark,
-    marginLeft: 12,
-    fontWeight: '500',
-  },
-  statusValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  totalEarningsCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
   },
   earningsHeader: {
     flexDirection: 'row',
@@ -1531,8 +1469,8 @@ const styles = StyleSheet.create({
   },
   earningsTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.dark,
+    fontWeight: '700',
+    color: '#2c3e50',
     marginLeft: 10,
   },
   earningsGrid: {
@@ -1546,29 +1484,123 @@ const styles = StyleSheet.create({
   },
   earningsLabel: {
     fontSize: 12,
-    color: COLORS.gray,
+    color: '#7f8c8d',
     marginBottom: 5,
+    fontWeight: '500',
   },
   earningsValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.success,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   commissionNote: {
     fontSize: 11,
-    color: COLORS.gray,
+    color: '#95a5a6',
     fontStyle: 'italic',
     textAlign: 'center',
   },
+  
+  classicQuickActions: {
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: 15,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  classicActionCard: {
+    width: (screenWidth - 55) / 2,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
+  },
+  actionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  classicActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  classicBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: COLORS.error,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  
+  chartsSection: {
+    marginBottom: 25,
+  },
+  classicChartCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2c3e50',
+  },
+  chart: {
+    borderRadius: 12,
+    marginLeft: -15,
+  },
   totalGains: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: COLORS.success,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   totalDeliveries: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+    fontWeight: '700',
+    color: COLORS.error,
   },
   loadingContainer: {
     height: 200,
@@ -1577,7 +1609,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: COLORS.gray,
+    color: '#7f8c8d',
     fontStyle: 'italic',
   },
   noDataContainer: {
@@ -1588,29 +1620,67 @@ const styles = StyleSheet.create({
   },
   noDataText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.gray,
+    fontWeight: '700',
+    color: '#95a5a6',
     marginTop: 15,
     textAlign: 'center',
   },
   noDataSubtext: {
     fontSize: 12,
-    color: COLORS.gray,
+    color: '#bdc3c7',
     marginTop: 5,
     textAlign: 'center',
   },
-  bottomSpacing: {
-    height: 20,
+  
+  systemStatus: {
+    marginBottom: 25,
   },
+  classicDebugCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
+  },
+  statusItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ecf0f1',
+  },
+  statusItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusLabel: {
+    fontSize: 14,
+    color: '#2c3e50',
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  statusValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
   errorAlert: {
     flexDirection: 'row',
-    backgroundColor: COLORS.error + '15',
-    borderRadius: 15,
+    backgroundColor: '#f8d7da',
+    borderRadius: 12,
     padding: 15,
     marginBottom: 15,
     alignItems: 'center',
     borderLeftWidth: 4,
     borderLeftColor: COLORS.error,
+    borderWidth: 1,
+    borderColor: '#f1aeb5',
   },
   errorContent: {
     marginLeft: 15,
@@ -1618,12 +1688,16 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.error,
+    fontWeight: '700',
+    color: '#721c24',
   },
   errorText: {
     fontSize: 12,
-    color: COLORS.dark,
+    color: '#856404',
     marginTop: 2,
+  },
+  
+  bottomSpacing: {
+    height: 20,
   },
 });
